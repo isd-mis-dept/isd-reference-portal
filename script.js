@@ -43,18 +43,22 @@ async function apiCall(action, data = {}) {
   }
 }
 window.onload = async function() {
+  // 1. Register Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+  }
+
+  // 2. Initialize Captcha
   generateCaptcha(); 
   
-  // Fetch Logo
+  // 3. Fetch Logo from Backend (if admin has uploaded a custom one, it overrides the default)
   const logoUrl = await apiCall('getLogo');
   if (logoUrl) {
     document.getElementById('loginLogo').src = logoUrl;
-    document.getElementById('loginLogo').style.display = 'block';
     document.getElementById('headerLogo').src = logoUrl;
-    document.getElementById('headerLogo').style.display = 'block';
   }
 
-  // Fetch Settings
+  // 4. Fetch Settings
   const settings = await apiCall('getSettings');
   if(settings) defaultSettings = settings;
 };
