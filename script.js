@@ -17,14 +17,31 @@ function showModal(title, message) {
 }
 
 function showPDFModal(pdfUrl, candidateName) {
+  // Check if the URL is valid
+  if (!pdfUrl || pdfUrl === "undefined" || pdfUrl === "") {
+    showModal("Error", "No PDF file available for this candidate.");
+    return;
+  }
+
   document.getElementById('modalTitle').innerText = "Reference Report: " + candidateName;
+  
+  // Use the preview URL inside the iframe
   document.getElementById('modalMessage').innerHTML = `
     <iframe src="${pdfUrl}" style="width:100%; height:60vh; border:none; border-radius:4px;"></iframe>
   `;
   
+  // Extract the File ID to create a valid download link
+  let fileId = "";
+  if (pdfUrl.includes("/d/")) {
+    fileId = pdfUrl.split("/d/")[1].split("/")[0];
+  }
+  
+  // Generate the proper download link
+  let downloadUrl = fileId ? "https://drive.google.com/uc?export=download&id=" + fileId : pdfUrl;
+  
   // Add download and close buttons
   document.querySelector('.modal-footer').innerHTML = `
-    <a href="${pdfUrl}" target="_blank" download class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
+    <a href="${downloadUrl}" target="_blank" class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
   `;
   
