@@ -45,12 +45,27 @@ function generateCaptcha() {
 // --- API CALLER ---
 async function apiCall(action, data = {}) {
   try {
-    const payload = JSON.stringify({ action: action, ...data });
+    // 1. Create URL-encoded form data (This bypasses CORS completely)
+    const formData = new URLSearchParams();
+    formData.append('action', action);
+    
+    // Append all data keys to the form
+    for (const key in data) {
+      if (typeof data[key] === 'object') {
+        formData.append(key, JSON.stringify(data[key]));
+      } else {
+        formData.append(key, data[key]);
+      }
+    }
+
+    // 2. Send the POST request
     const response = await fetch(API_URL, {
       method: 'POST',
-      body: payload,
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      body: formData,
+      // No custom headers needed here, which prevents the browser from blocking it
     });
+    
+    // 3. Parse the JSON response
     return await response.json();
   } catch (error) {
     console.error("API Error:", error);
