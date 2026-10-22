@@ -23,6 +23,50 @@ function closeModal() {
 
 function showSystemError(err) { showModal("System Alert", err); }
 
+// 🔥 NEW: Modal Table Display Logic
+async function showDashboardTable(type) {
+  showModal("Loading...", "<p>Fetching records...</p>");
+  
+  let title = "";
+  let html = "";
+  let records = [];
+
+  if (type === 'completed') {
+    title = "Completed References";
+    records = await apiCall('getAllSubmittedRecords');
+    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Date</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Recommendation</th></tr>';
+    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No records found.</td></tr>';
+    else {
+      records.forEach(r => {
+        let d = new Date(r.date).toLocaleDateString();
+        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td></tr>';
+      });
+    }
+    html += '</table></div>';
+  } else if (type === 'pending') {
+    title = "Pending Requests";
+    records = await apiCall('getAllPendingRecords');
+    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th></tr>';
+    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No pending requests.</td></tr>';
+    else {
+      records.forEach(r => {
+        let statusColor = r.status === 'Sent' ? '#38D430' : '#FFDA00';
+        let statusText = r.status === 'Sent' ? 'Email Sent' : 'Pending Email';
+        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.officialName + '</td><td style="padding:10px;">' + r.email + '</td><td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + statusText + '</td></tr>';
+      });
+    }
+    html += '</table></div>';
+  }
+
+  document.getElementById('modalTitle').innerText = title;
+  document.getElementById('modalMessage').innerHTML = html;
+  document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Close</button>`;
+  document.querySelector('.modal-box').style.maxWidth = '800px';
+  document.getElementById('customModal').style.display = 'flex';
+}
+
 async function showPDFModal(assignmentId, candidateName) {
   showModal("Loading...", "<p>Fetching reference data...</p>");
   const res = await apiCall('getSubmissionData', { assignmentId: assignmentId });
@@ -220,7 +264,12 @@ async function loadDashboard() {
     let assign = rawData.rawAssignments || [];
     let totalSubmissions = subs.length;
     let pending = 0;
-    for (let i = 0; i < assign.length; i++) if (assign[i][3] === "Pending") pending++;
+    
+    // 🔥 FIX: Count both Pending and Sent
+    for (let i = 0; i < assign.length; i++) {
+      if (assign[i][3] === "Pending" || assign[i][3] === "Sent") pending++;
+    }
+
     let recent = [];
     let analytics = { classroom: {Excellent:0, Good:0, Satisfactory:0}, recommendation: {Highly:0, Recommended:0, Not:0} };
     let count = 0;
@@ -240,19 +289,24 @@ async function loadDashboard() {
       } catch(e) { }
     }
     let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">System Overview</h2>';
+    
+    // 🔥 FIX: Added onclick to the cards
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px;">';
-    html += '<div class="card" style="border-top-color:#38D430; text-align:center;"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
-    html += '<div class="card" style="border-top-color:#FFDA00; text-align:center;"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
+    html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
+    html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
     html += '</div>';
+    
     html += '<div class="card"><h3>Reference Insights</h3><p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
     html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">';
     html += '<div><h4 style="color:var(--isd-teal);">Classroom Management</h4><p>Excellent: <b>' + analytics.classroom.Excellent + '</b></p><p>Good: <b>' + analytics.classroom.Good + '</b></p><p>Satisfactory: <b>' + analytics.classroom.Satisfactory + '</b></p></div>';
     html += '<div><h4 style="color:var(--isd-teal);">Overall Recommendation</h4><p>Highly Recommended: <b>' + analytics.recommendation.Highly + '</b></p><p>Recommended: <b>' + analytics.recommendation.Recommended + '</b></p><p>Not Recommended: <b>' + analytics.recommendation.Not + '</b></p></div>';
     html += '</div></div>';
+    
     html += '<div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
     html += '<button onclick="loadAuditLogs()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">📋 View Audit Trail</button>';
     html += '</div>';
+    
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
     html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th></tr>';
     if(recent.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
@@ -316,12 +370,22 @@ async function loadManageRefereesPage() {
 
   let tHtml = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
   tHtml += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Referee (User)</th><th style="padding:10px;">Official Name</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>';
+  
   let pendingItems = all.filter(a => a.status === 'Pending');
+  let sentItems = all.filter(a => a.status === 'Sent');
   let submittedItems = all.filter(a => a.status === 'Submitted');
-  if(pendingItems.length === 0) tHtml += '<tr><td colspan="5" style="padding:10px; text-align:center;">No pending assignments.</td></tr>';
+  
+  if(pendingItems.length === 0 && sentItems.length === 0) tHtml += '<tr><td colspan="5" style="padding:10px; text-align:center;">No active assignments.</td></tr>';
+  
   pendingItems.forEach(p => {
     tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + p.username + '</td><td style="padding:10px;">' + p.officialName + '</td><td style="padding:10px; font-weight:bold;">' + p.candidate + '</td><td style="padding:10px; color:#FFDA00; font-weight:bold;">Pending</td><td style="padding:10px;"><button onclick="resetRefPassword(\'' + p.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:12px; background-color:var(--isd-teal);">Reset Password</button></td></tr>';
   });
+  
+  // 🔥 NEW: Display Sent items with a distinct color
+  sentItems.forEach(s => {
+    tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#004C45; font-weight:bold;">Email Sent</td><td style="padding:10px; color:#777; font-size:12px;">Awaiting Referee</td></tr>';
+  });
+  
   if(submittedItems.length > 0) {
     tHtml += '<tr style="background:#eee;"><td colspan="5" style="padding:10px; font-weight:bold; color:var(--isd-teal); cursor:pointer;" onclick="toggleSubmitted()">▼ View Submitted Assignments (' + submittedItems.length + ')</td></tr>';
     tHtml += '<tbody id="submittedRows" style="display:none;">';
@@ -391,7 +455,6 @@ async function loadSendEmailPage() {
   document.getElementById('contentArea').innerHTML = html;
 }
 
-// 🔥 DYNAMIC EMAIL GENERATION
 async function populateEmailFields() {
   let sel = document.getElementById('assignSelect');
   let opt = sel.options[sel.selectedIndex];
@@ -403,7 +466,6 @@ async function populateEmailFields() {
   let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
   
-  // Fetch or reset the referee's password
   const passRes = await apiCall('getRefereeCredentials', { username: rUser });
   let tempPass = passRes || "Please use your existing password";
 
@@ -433,7 +495,6 @@ async function sendDynamicEmail() {
     body: document.getElementById('emailBody').value 
   };
   
-  // Get the selected assignment ID
   let sel = document.getElementById('assignSelect');
   let opt = sel.options[sel.selectedIndex];
   let assignId = opt.value;
@@ -442,14 +503,9 @@ async function sendDynamicEmail() {
   if(!assignId) return showModal("Error", "Please select a referee first.");
 
   const res = await apiCall('sendEmail', { settings: settings });
-  
   if(res.success) {
-    // 🔥 NEW: Mark the assignment as "Sent" in the database
     await apiCall('markAssignmentAsSent', { assignmentId: assignId });
-    
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
-    
-    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
@@ -518,11 +574,9 @@ function confirmSubmission(e, assignId, candName) {
 async function submitFormData() {
   if (!pendingFormSubmission) return;
   const { assignId, candName, data } = pendingFormSubmission;
-  
   document.getElementById('modalTitle').innerText = "Submitting...";
   document.getElementById('modalMessage').innerHTML = "<p>Please wait while we save your reference...</p>";
   document.querySelector('.modal-footer').innerHTML = ``;
-  
   const res = await apiCall('submitForm', { formData: data, username: currentUser.name, assignmentId: assignId });
   if(res.success) {
     showModal("Success", "Form submitted successfully! HR has been notified.");
