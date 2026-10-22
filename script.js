@@ -650,28 +650,24 @@ async function loadUserManagementTable() {
   if(!users) return;
   
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
-  // 🔥 NEW: Added Access Expiry column header
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Staff Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Access Expiry</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; 
   
   users.forEach(u => {
     let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
     let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
     
-    // 🔥 NEW: Logic to highlight expired dates in red
     let expiryText = u.expiry;
     let expiryColor = "#333";
-    
     if (u.expiry !== "No Expiry") {
       let expDate = new Date(u.expiry);
       let today = new Date();
-      today.setHours(0,0,0,0); // Ignore time for accurate day comparison
-      
+      today.setHours(0,0,0,0); 
       if (expDate < today) {
-        expiryColor = "#FF5C35"; // Red for Expired
+        expiryColor = "#FF5C35"; 
         expiryText += " (Expired)";
       }
     } else {
-      expiryColor = "#777"; // Gray for No Expiry
+      expiryColor = "#777"; 
     }
 
     html += '<tr style="border-bottom:1px solid #eee;">';
@@ -679,10 +675,12 @@ async function loadUserManagementTable() {
     html += '<td style="padding:10px;">' + u.username + '</td>';
     html += '<td style="padding:10px;">' + u.role + '</td>';
     html += '<td style="padding:10px;">' + u.email + '</td>';
-    // 🔥 NEW: Display the expiry date with color logic
     html += '<td style="padding:10px; color:' + expiryColor + '; font-weight:bold;">' + expiryText + '</td>';
     html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + u.status + '</td>';
+    
     html += '<td style="padding:10px; display:flex; gap:5px; flex-wrap:wrap;">';
+    // 🔥 NEW: Edit Button
+    html += '<button onclick="editStaffName(\'' + u.username + '\', \'' + (u.staffName || '') + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Edit</button>';
     html += '<button onclick="toggleUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-teal);">' + toggleText + '</button>';
     html += '<button onclick="adminResetPass(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Reset Pass</button>';
     html += '<button onclick="deleteSystemUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-red);">Delete</button>';
@@ -697,7 +695,35 @@ async function toggleUser(username) {
   showModal("Status Updated", res.message);
   loadUserManagementTable();
 }
+function editStaffName(username, currentName) {
+  // Override the default modal footer to show an input field and Save button
+  document.getElementById('modalTitle').innerText = "Edit Staff Name";
+  document.getElementById('modalMessage').innerHTML = `
+    <p>Editing Staff Name for: <b>${username}</b></p>
+    <input type="text" id="editStaffNameInput" value="${currentName}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; margin-top:10px; font-size:15px;">
+  `;
+  
+  document.querySelector('.modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="saveStaffName('${username}')" style="width:auto; margin-right:10px;">Save Changes</button>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
+  `;
+  
+  document.getElementById('customModal').style.display = 'flex';
+}
 
+async function saveStaffName(username) {
+  const newName = document.getElementById('editStaffNameInput').value.trim();
+  if(!newName) return showModal("Error", "Staff Name cannot be empty.");
+  
+  const res = await apiCall('updateStaffName', { username: username, newStaffName: newName });
+  if(res.success) {
+    closeModal();
+    showModal("Success", res.message);
+    loadUserManagementTable(); // Refresh the table to show the new name
+  } else {
+    showModal("Error", res.message);
+  }
+}
 async function adminResetPass(username) {
   if(!confirm("Reset password for " + username + "? A new password will be emailed to them.")) return;
   const res = await apiCall('adminResetPassword', { username: username });
