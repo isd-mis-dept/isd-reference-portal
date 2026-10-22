@@ -470,15 +470,15 @@ async function populateEmailFields() {
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
   let rUser = opt.getAttribute('data-user');
+  let assignId = opt.value; // We need the specific assignment ID
   let formLink = defaultSettings.loginUrl || window.location.href;
   
-  // Fetch a fresh password
-  const passRes = await apiCall('getRefereeCredentials', { username: rUser });
+  // Fetch the correct password for THIS specific assignment
+  const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
   document.getElementById('toEmail').value = rEmail;
   
-  // Build the Preview
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
@@ -509,14 +509,11 @@ async function sendDynamicEmail() {
   let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
   
-  // Get the password again to send it to the backend
-  const passRes = await apiCall('getRefereeCredentials', { username: rUser });
+  const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
-  // Show loading modal
   showModal("Sending...", "<p>Please wait while we generate and send the email...</p>");
 
-  // Send the data to the backend (not the HTML!)
   const res = await apiCall('sendEmail', { 
     to: rEmail,
     refereeName: rName,
