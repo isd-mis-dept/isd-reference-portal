@@ -9,7 +9,10 @@ let currentCaptchaAnswer = 0;
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
   document.getElementById('modalMessage').innerHTML = message;
+  
+  // Reset modal buttons to standard OK
   document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">OK</button>`;
+  
   document.getElementById('customModal').style.display = 'flex';
 }
 
@@ -18,16 +21,21 @@ function showPDFModal(pdfUrl, candidateName) {
   document.getElementById('modalMessage').innerHTML = `
     <iframe src="${pdfUrl}" style="width:100%; height:60vh; border:none; border-radius:4px;"></iframe>
   `;
+  
+  // Add download and close buttons
   document.querySelector('.modal-footer').innerHTML = `
     <a href="${pdfUrl}" target="_blank" download class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
   `;
+  
+  // Make modal wider for the PDF
   document.querySelector('.modal-box').style.maxWidth = '900px';
   document.getElementById('customModal').style.display = 'flex';
 }
 
 function closeModal() { 
   document.getElementById('customModal').style.display = 'none';
+  // Reset modal box width
   document.querySelector('.modal-box').style.maxWidth = '450px';
 }
 
@@ -41,22 +49,15 @@ function generateCaptcha() {
   document.getElementById('captchaInput').value = '';
 }
 
-// --- NEW BULLETPROOF API CALLER ---
+// --- API CALLER ---
 async function apiCall(action, data = {}) {
   try {
-    // 1. Create a single JSON object
     const payload = JSON.stringify({ action: action, ...data });
-    
-    // 2. Send as text/plain to bypass CORS
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: payload
+      body: payload,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     });
-    
-    // 3. Parse the JSON response
     return await response.json();
   } catch (error) {
     console.error("API Error:", error);
@@ -229,6 +230,7 @@ async function loadDashboard() {
     if(recent.length === 0) html += '<tr><td colspan="5" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
     recent.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
+      // Changed the link to call showPDFModal
       html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.pdf + '\', \'' + r.candidate + '\')" style="color:var(--isd-red); font-weight:bold; text-decoration:none;">View PDF</a></td></tr>';
     });
     html += '</table></div></div>';
@@ -388,7 +390,7 @@ function populateEmailFields() {
   let rName = opt.getAttribute('data-name');
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
-  let formLink = defaultSettings.loginUrl || window.location.href; 
+  let formLink = defaultSettings.loginUrl || window.location.href;
   
   document.getElementById('toEmail').value = rEmail;
   document.getElementById('emailSubject').value = "Reference Request for " + cName;
@@ -414,11 +416,15 @@ async function sendDynamicEmail() {
   
   const res = await apiCall('sendEmail', { settings: settings });
   if(res.success) {
+    // Get the candidate name from the dropdown to show in the success modal
     let sel = document.getElementById('assignSelect');
     let opt = sel.options[sel.selectedIndex];
     let cName = opt.getAttribute('data-cand');
     
+    // Show custom success message
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
+    
+    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
@@ -520,11 +526,13 @@ function getAdminHTML() {
   html += '</table></div>';
   html += '<button onclick="createNewUser()" class="btn btn-primary">Create User</button></div>';
   
+  // Trigger the async load of the user table
   setTimeout(loadUserManagementTable, 100);
   
   return html;
 }
 
+// --- NEW USER MANAGEMENT LOGIC ---
 async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
@@ -570,6 +578,7 @@ async function deleteSystemUser(username) {
   showModal("User Deleted", res.message);
   loadUserManagementTable();
 }
+// ---------------------------------
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
 
@@ -586,7 +595,7 @@ async function saveDefSettings() {
   
   await apiCall('saveSettings', { replyTo: reply, bcc: bcc, loginUrl: login });
   defaultSettings = { reply: reply, bcc: bcc, loginUrl: login };
-  showModal("Success", "Settings saved successfully! The email fields have been updated globally.");
+  showModal("Success", "Settings saved!");
 }
 
 function resizeAndUploadLogo() {
@@ -631,6 +640,6 @@ async function createNewUser() {
     document.getElementById('newUser').value = ''; 
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
-    loadUserManagementTable(); 
+    loadUserManagementTable(); // Refresh the user table
   }
 }
