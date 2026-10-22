@@ -25,18 +25,26 @@ function generateCaptcha() {
 // Generic API Caller using fetch
 async function apiCall(action, data = {}) {
   try {
+    // We use URLSearchParams and no-cors to avoid CORS preflight issues
+    const payload = new URLSearchParams();
+    payload.append("action", action);
+    payload.append("data", JSON.stringify(data));
+
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS requires text/plain to avoid CORS preflight
-      body: JSON.stringify({ action: action, ...data })
+      body: payload,
+      // Note: Apps Script requires text/plain to avoid CORS blocks
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      }
     });
+    
     return await response.json();
   } catch (error) {
     console.error("API Error:", error);
     return { success: false, message: "Connection failed. Please check your internet." };
   }
 }
-
 window.onload = async function() {
   generateCaptcha(); 
   
