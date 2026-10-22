@@ -1,5 +1,4 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxMp3hM2AKZtzYlYXw2FSPmx_xGIysmLXSNTZqO_y0HO4i7Da8SwsKOQK2VA3ZOxV8V/exec";
-
 let currentUser = null;
 let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
