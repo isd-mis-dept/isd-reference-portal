@@ -25,24 +25,21 @@ function generateCaptcha() {
 // Generic API Caller using fetch
 async function apiCall(action, data = {}) {
   try {
-    // We use URLSearchParams and no-cors to avoid CORS preflight issues
-    const payload = new URLSearchParams();
-    payload.append("action", action);
-    payload.append("data", JSON.stringify(data));
+    // We send the data as a JSON string, but use text/plain to bypass CORS preflight
+    const payload = JSON.stringify({ action: action, ...data });
 
     const response = await fetch(API_URL, {
       method: 'POST',
       body: payload,
-      // Note: Apps Script requires text/plain to avoid CORS blocks
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
+        'Content-Type': 'text/plain;charset=utf-8' // Crucial for GAS
       }
     });
     
     return await response.json();
   } catch (error) {
     console.error("API Error:", error);
-    return { success: false, message: "Connection failed. Please check your internet." };
+    return { success: false, message: "Connection failed: " + error.message };
   }
 }
 window.onload = async function() {
