@@ -1,17 +1,44 @@
-// ⚠️ IMPORTANT: Replace this URL with your deployed Google Apps Script Web App URL
-const API_URL = "https://script.google.com/macros/s/AKfycbxMp3hM2AKZtzYlYXw2FSPmx_xGIysmLXSNTZqO_y0HO4i7Da8SwsKOQK2VA3ZOxV8V/exec";
+const API_URL = "https://script.google.com/macros/s/YOUR_ACTUAL_SCRIPT_ID_HERE/exec";
 
 let currentUser = null;
 let defaultSettings = { reply: "hr@isdbd.org", bcc: "hr@isdbd.org", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
 
+// --- UI HELPERS ---
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
   document.getElementById('modalMessage').innerHTML = message;
+  
+  // Reset modal buttons to standard OK
+  document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">OK</button>`;
+  
   document.getElementById('customModal').style.display = 'flex';
 }
-function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+
+function showPDFModal(pdfUrl, candidateName) {
+  document.getElementById('modalTitle').innerText = "Reference Report: " + candidateName;
+  document.getElementById('modalMessage').innerHTML = `
+    <iframe src="${pdfUrl}" style="width:100%; height:60vh; border:none; border-radius:4px;"></iframe>
+  `;
+  
+  // Add download and close buttons
+  document.querySelector('.modal-footer').innerHTML = `
+    <a href="${pdfUrl}" target="_blank" download class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
+  `;
+  
+  // Make modal wider for the PDF
+  document.querySelector('.modal-box').style.maxWidth = '900px';
+  document.getElementById('customModal').style.display = 'flex';
+}
+
+function closeModal() { 
+  document.getElementById('customModal').style.display = 'none';
+  // Reset modal box width
+  document.querySelector('.modal-box').style.maxWidth = '450px';
+}
+
 function showSystemError(err) { showModal("System Alert", err); }
 
 function generateCaptcha() {
@@ -22,43 +49,36 @@ function generateCaptcha() {
   document.getElementById('captchaInput').value = '';
 }
 
-// Generic API Caller using fetch
+// --- API CALLER ---
 async function apiCall(action, data = {}) {
   try {
-    // We send the data as a JSON string, but use text/plain to bypass CORS preflight
     const payload = JSON.stringify({ action: action, ...data });
-
     const response = await fetch(API_URL, {
       method: 'POST',
       body: payload,
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8' // Crucial for GAS
-      }
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     });
-    
     return await response.json();
   } catch (error) {
     console.error("API Error:", error);
     return { success: false, message: "Connection failed: " + error.message };
   }
 }
+
+// --- INIT ---
 window.onload = async function() {
-  // 1. Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
   }
 
-  // 2. Initialize Captcha
   generateCaptcha(); 
   
-  // 3. Fetch Logo from Backend (if admin has uploaded a custom one, it overrides the default)
   const logoUrl = await apiCall('getLogo');
   if (logoUrl) {
     document.getElementById('loginLogo').src = logoUrl;
     document.getElementById('headerLogo').src = logoUrl;
   }
 
-  // 4. Fetch Settings
   const settings = await apiCall('getSettings');
   if(settings) defaultSettings = settings;
 };
@@ -198,19 +218,20 @@ async function loadDashboard() {
     html += '<div><h4 style="color:var(--isd-teal);">Overall Recommendation</h4><p>Highly Recommended: <b>' + analytics.recommendation.Highly + '</b></p><p>Recommended: <b>' + analytics.recommendation.Recommended + '</b></p><p>Not Recommended: <b>' + analytics.recommendation.Not + '</b></p></div>';
     html += '</div></div>';
 
-    html += '<div style="display:flex; gap:15px; margin-bottom:30px;">';
+    html += '<div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
     html += '<button onclick="loadAuditLogs()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">📋 View Audit Trail</button>';
     html += '</div>';
 
-    html += '<div class="card"><h3>Recent Submissions</h3><table style="width:100%; border-collapse:collapse;">';
+    html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
     html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th><th style="padding:10px; border-bottom:2px solid #ddd;">Action</th></tr>';
     if(recent.length === 0) html += '<tr><td colspan="5" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
     recent.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
-      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td><td style="padding:10px;"><a href="' + r.pdf + '" target="_blank" style="color:var(--isd-red); font-weight:bold; text-decoration:none;">Download PDF</a></td></tr>';
+      // Changed the link to call showPDFModal
+      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.pdf + '\', \'' + r.candidate + '\')" style="color:var(--isd-red); font-weight:bold; text-decoration:none;">View PDF</a></td></tr>';
     });
-    html += '</table></div>';
+    html += '</table></div></div>';
 
     html += '<div id="auditArea"></div>';
     document.getElementById('contentArea').innerHTML = html;
@@ -237,7 +258,7 @@ async function loadAuditLogs() {
   document.getElementById('auditArea').innerHTML = "<p>Loading logs...</p>";
   const logs = await apiCall('getAuditLogs');
   
-  let html = '<div class="card"><h3>Audit Trail (Last 50 Emails)</h3><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+  let html = '<div class="card"><h3>Audit Trail (Last 50 Emails)</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Time</th><th style="padding:10px;">Sent By</th><th style="padding:10px;">To</th><th style="padding:10px;">BCC</th><th style="padding:10px;">Subject</th><th style="padding:10px;">Status</th></tr>';
   if(!logs || logs.length === 0) html += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No email logs found.</td></tr>';
   else {
@@ -245,7 +266,7 @@ async function loadAuditLogs() {
       html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + l.time + '</td><td style="padding:10px;">' + l.sentBy + '</td><td style="padding:10px;">' + l.to + '</td><td style="padding:10px;">' + l.bcc + '</td><td style="padding:10px;">' + l.subject + '</td><td style="padding:10px;"><span style="color:#38D430; font-weight:bold;">' + l.status + '</span></td></tr>';
     });
   }
-  html += '</table></div>';
+  html += '</table></div></div>';
   document.getElementById('auditArea').innerHTML = html;
 }
 
@@ -271,7 +292,7 @@ async function loadManageRefereesPage() {
   const all = await apiCall('getAllAssignments');
   if(!all) return;
 
-  let tHtml = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
+  let tHtml = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
   tHtml += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Referee (User)</th><th style="padding:10px;">Official Name</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>';
   
   let pendingItems = all.filter(a => a.status === 'Pending');
@@ -286,12 +307,12 @@ async function loadManageRefereesPage() {
     tHtml += '<tr style="background:#eee;"><td colspan="5" style="padding:10px; font-weight:bold; color:var(--isd-teal); cursor:pointer;" onclick="toggleSubmitted()">▼ View Submitted Assignments (' + submittedItems.length + ')</td></tr>';
     tHtml += '<tbody id="submittedRows" style="display:none;">';
     submittedItems.forEach(s => {
-      tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#38D430; font-weight:bold;">Submitted</td><td style="padding:10px;"><a href="' + s.pdf + '" target="_blank">View PDF</a></td></tr>';
+      tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#38D430; font-weight:bold;">Submitted</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.pdf + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td></tr>';
     });
     tHtml += '</tbody>';
   }
   
-  tHtml += '</table>';
+  tHtml += '</table></div>';
   document.getElementById('pendingAssignmentsTable').innerHTML = tHtml;
 }
 
@@ -393,7 +414,15 @@ async function sendDynamicEmail() {
   
   const res = await apiCall('sendEmail', { settings: settings });
   if(res.success) {
-    showModal("Success", "Email sent successfully!");
+    // Get the candidate name from the dropdown to show in the success modal
+    let sel = document.getElementById('assignSelect');
+    let opt = sel.options[sel.selectedIndex];
+    let cName = opt.getAttribute('data-cand');
+    
+    // Show custom success message
+    showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
+    
+    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
@@ -405,8 +434,7 @@ async function loadRefereeView() {
   const subs = await apiCall('getMySubmissions', { username: currentUser.name });
   if(!subs) return;
 
-  let html = '<div class="card"><h2>My Submission History</h2>';
-  html += '<table style="width:100%; border-collapse:collapse; margin-top:15px;">';
+  let html = '<div class="card"><h2>My Submission History</h2><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-top:15px;">';
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Candidate Name</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>';
   
   if(subs.length === 0) html += '<tr><td colspan="3" style="padding:20px; text-align:center; color:#777;">No forms assigned yet.</td></tr>';
@@ -416,14 +444,14 @@ async function loadRefereeView() {
     html += '<td style="padding:10px; font-weight:bold;">' + s.candidate + '</td>';
     if(s.status === 'Submitted') {
       html += '<td style="padding:10px; color:#38D430; font-weight:bold;">Submitted & Locked</td>';
-      html += '<td style="padding:10px;"><a href="' + s.pdf + '" target="_blank" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td>';
+      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.pdf + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td>';
     } else {
       html += '<td style="padding:10px; color:#FFDA00; font-weight:bold;">Pending</td>';
       html += '<td style="padding:10px;"><button onclick="loadRefForm(\'' + s.candidate + '\', \'' + currentUser.name + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:12px;">Fill Form</button></td>';
     }
     html += '</tr>';
   });
-  html += '</table></div><div id="activeFormContainer"></div>';
+  html += '</table></div></div><div id="activeFormContainer"></div>';
   document.getElementById('contentArea').innerHTML = html;
 }
 
@@ -475,6 +503,9 @@ function getAdminHTML() {
   html += '<div class="input-group"><label>Global Logo URL</label><div style="display:flex; gap:10px;"><input type="text" id="globalLogoUrl" placeholder="https://..."><button onclick="saveGlobalLogo()" class="btn btn-primary" style="width:auto;">Save</button></div></div>';
   html += '<label>Or Upload Logo File:</label><input type="file" id="logoInput" accept="image/*" onchange="resizeAndUploadLogo()"></div>';
   
+  html += '<div class="card"><h3>User Management</h3>';
+  html += '<div id="userManagementTable">Loading users...</div></div>';
+
   html += '<div class="card"><h3>Create New User & Permissions</h3>';
   html += '<div class="input-group"><label>Role</label><select id="newRole" onchange="togglePerms()"><option value="HR">HR</option><option value="Referee">Referee</option><option value="Admin">Admin</option></select></div>';
   html += '<div class="input-group"><label>Username / Referee Name</label><input type="text" id="newUser"></div>';
@@ -491,10 +522,61 @@ function getAdminHTML() {
   html += '<tr><td style="padding:5px;">Manage Referees</td><td><input type="checkbox" value="ManageReferees" class="perm-check" checked></td></tr>';
   html += '<tr><td style="padding:5px;">Admin Settings</td><td><input type="checkbox" value="Admin" class="perm-check"></td></tr>';
   html += '</table></div>';
-  
   html += '<button onclick="createNewUser()" class="btn btn-primary">Create User</button></div>';
+  
+  // Trigger the async load of the user table
+  setTimeout(loadUserManagementTable, 100);
+  
   return html;
 }
+
+// --- NEW USER MANAGEMENT LOGIC ---
+async function loadUserManagementTable() {
+  const users = await apiCall('getAllUsers');
+  if(!users) return;
+
+  let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
+  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>';
+  
+  users.forEach(u => {
+    let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
+    let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
+    
+    html += '<tr style="border-bottom:1px solid #eee;">';
+    html += '<td style="padding:10px; font-weight:bold;">' + u.username + '</td>';
+    html += '<td style="padding:10px;">' + u.role + '</td>';
+    html += '<td style="padding:10px;">' + u.email + '</td>';
+    html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + u.status + '</td>';
+    html += '<td style="padding:10px; display:flex; gap:5px; flex-wrap:wrap;">';
+    html += '<button onclick="toggleUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-teal);">' + toggleText + '</button>';
+    html += '<button onclick="adminResetPass(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Reset Pass</button>';
+    html += '<button onclick="deleteSystemUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-red);">Delete</button>';
+    html += '</td></tr>';
+  });
+  
+  html += '</table></div>';
+  document.getElementById('userManagementTable').innerHTML = html;
+}
+
+async function toggleUser(username) {
+  const res = await apiCall('toggleUserStatus', { username: username });
+  showModal("Status Updated", res.message);
+  loadUserManagementTable();
+}
+
+async function adminResetPass(username) {
+  if(!confirm("Reset password for " + username + "? A new password will be emailed to them.")) return;
+  const res = await apiCall('adminResetPassword', { username: username });
+  showModal("Password Reset", res.message);
+}
+
+async function deleteSystemUser(username) {
+  if(!confirm("Are you sure you want to permanently delete " + username + "? This cannot be undone.")) return;
+  const res = await apiCall('deleteUser', { username: username });
+  showModal("User Deleted", res.message);
+  loadUserManagementTable();
+}
+// ---------------------------------
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
 
@@ -528,7 +610,6 @@ function resizeAndUploadLogo() {
       
       apiCall('uploadLogo', { base64Data: canvas.toDataURL('image/png') }).then(url => {
         document.getElementById('headerLogo').src = url; 
-        document.getElementById('headerLogo').style.display = 'block';
         showModal("Success", "Logo uploaded successfully!");
       });
     }; img.src = e.target.result;
@@ -553,5 +634,10 @@ async function createNewUser() {
   });
   
   showModal("System Message", res.message);
-  if(res.success) { document.getElementById('newUser').value = ''; document.getElementById('newPass').value = ''; document.getElementById('newEmail').value = ''; }
+  if(res.success) { 
+    document.getElementById('newUser').value = ''; 
+    document.getElementById('newPass').value = ''; 
+    document.getElementById('newEmail').value = ''; 
+    loadUserManagementTable(); // Refresh the user table
+  }
 }
