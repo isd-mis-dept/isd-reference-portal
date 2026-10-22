@@ -5,7 +5,6 @@ let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
 let pendingFormSubmission = null;
-
 // --- UI HELPERS ---
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
