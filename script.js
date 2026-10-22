@@ -648,16 +648,39 @@ function getAdminHTML() {
 async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
+  
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
-  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Staff Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; // 🔥 Added Staff Name Column
+  // 🔥 NEW: Added Access Expiry column header
+  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Staff Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Access Expiry</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; 
+  
   users.forEach(u => {
     let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
     let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
+    
+    // 🔥 NEW: Logic to highlight expired dates in red
+    let expiryText = u.expiry;
+    let expiryColor = "#333";
+    
+    if (u.expiry !== "No Expiry") {
+      let expDate = new Date(u.expiry);
+      let today = new Date();
+      today.setHours(0,0,0,0); // Ignore time for accurate day comparison
+      
+      if (expDate < today) {
+        expiryColor = "#FF5C35"; // Red for Expired
+        expiryText += " (Expired)";
+      }
+    } else {
+      expiryColor = "#777"; // Gray for No Expiry
+    }
+
     html += '<tr style="border-bottom:1px solid #eee;">';
-    html += '<td style="padding:10px; font-weight:bold;">' + (u.staffName || 'N/A') + '</td>'; // 🔥 Display Staff Name
+    html += '<td style="padding:10px; font-weight:bold;">' + (u.staffName || 'N/A') + '</td>';
     html += '<td style="padding:10px;">' + u.username + '</td>';
     html += '<td style="padding:10px;">' + u.role + '</td>';
     html += '<td style="padding:10px;">' + u.email + '</td>';
+    // 🔥 NEW: Display the expiry date with color logic
+    html += '<td style="padding:10px; color:' + expiryColor + '; font-weight:bold;">' + expiryText + '</td>';
     html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + u.status + '</td>';
     html += '<td style="padding:10px; display:flex; gap:5px; flex-wrap:wrap;">';
     html += '<button onclick="toggleUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-teal);">' + toggleText + '</button>';
