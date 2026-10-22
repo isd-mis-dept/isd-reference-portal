@@ -180,7 +180,35 @@ window.onload = async function() {
 };
 
 function forgotPassword() {
-  showModal("Forgot Password", "Please contact the ISD MIS Department at <b>mis@isdbd.org</b> to request a password reset.");
+  document.getElementById('modalTitle').innerText = "Forgot Password";
+  document.getElementById('modalMessage').innerHTML = `
+    <p>Please enter your registered email address. The system will generate a new password and send it to you.</p>
+    <div class="input-group" style="margin-top:15px;">
+      <label>Email Address</label>
+      <input type="email" id="forgotEmailInput" placeholder="yourname@isdbd.org" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+    </div>
+  `;
+  
+  document.querySelector('.modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="submitForgotPassword()" style="width:auto; margin-right:10px;">Reset Password</button>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
+  `;
+  document.getElementById('customModal').style.display = 'flex';
+}
+
+async function submitForgotPassword() {
+  const email = document.getElementById('forgotEmailInput').value.trim();
+  if(!email) return showModal("Error", "Please enter your email address.");
+  
+  showModal("Processing...", "<p>Please wait while we verify your email and generate a new password...</p>");
+  
+  const res = await apiCall('forgotPasswordRequest', { email: email });
+  
+  if(res.success) {
+    showModal("Success", "<p>A new password has been sent to your email address.</p><p><em>Note: A copy has also been sent to the Admin.</em></p>");
+  } else {
+    showModal("Error", res.message);
+  }
 }
 
 async function handleLogin(e) {
@@ -831,5 +859,17 @@ async function createNewUser() {
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
     loadUserManagementTable();
+  }
+}
+function togglePasswordVisibility() {
+  const passwordField = document.getElementById('password');
+  const toggleIcon = document.querySelector('.toggle-password');
+  
+  if (passwordField.type === 'password') {
+    passwordField.type = 'text';
+    toggleIcon.innerText = '🙈'; // Change icon to hide
+  } else {
+    passwordField.type = 'password';
+    toggleIcon.innerText = '👁️'; // Change icon to show
   }
 }
