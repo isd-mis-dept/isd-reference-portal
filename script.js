@@ -1,61 +1,109 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxMp3hM2AKZtzYlYXw2FSPmx_xGIysmLXSNTZqO_y0HO4i7Da8SwsKOQK2VA3ZOxV8V/exec";
+
 let currentUser = null;
 let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
+let pendingFormSubmission = null; // Holds data while modal is open
 
 // --- UI HELPERS ---
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
   document.getElementById('modalMessage').innerHTML = message;
-  
-  // Reset modal buttons to standard OK
   document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">OK</button>`;
-  
-  document.getElementById('customModal').style.display = 'flex';
-}
-
-function showPDFModal(pdfUrl, candidateName) {
-  // Check if the URL is valid
-  if (!pdfUrl || pdfUrl === "undefined" || pdfUrl === "") {
-    showModal("Error", "No PDF file available for this candidate.");
-    return;
-  }
-
-  document.getElementById('modalTitle').innerText = "Reference Report: " + candidateName;
-  
-  // Use the preview URL inside the iframe
-  document.getElementById('modalMessage').innerHTML = `
-    <iframe src="${pdfUrl}" style="width:100%; height:60vh; border:none; border-radius:4px;"></iframe>
-  `;
-  
-  // Extract the File ID to create a valid download link
-  let fileId = "";
-  if (pdfUrl.includes("/d/")) {
-    fileId = pdfUrl.split("/d/")[1].split("/")[0];
-  }
-  
-  // Generate the proper download link
-  let downloadUrl = fileId ? "https://drive.google.com/uc?export=download&id=" + fileId : pdfUrl;
-  
-  // Add download and close buttons
-  document.querySelector('.modal-footer').innerHTML = `
-    <a href="${downloadUrl}" target="_blank" class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
-    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
-  `;
-  
-  // Make modal wider for the PDF
-  document.querySelector('.modal-box').style.maxWidth = '900px';
+  document.querySelector('.modal-box').style.maxWidth = '450px';
   document.getElementById('customModal').style.display = 'flex';
 }
 
 function closeModal() { 
   document.getElementById('customModal').style.display = 'none';
-  // Reset modal box width
   document.querySelector('.modal-box').style.maxWidth = '450px';
+  pendingFormSubmission = null;
 }
 
 function showSystemError(err) { showModal("System Alert", err); }
+
+// 🔥 NEW PDF MODAL LOGIC (Renders HTML table and prints)
+async function showPDFModal(assignmentId, candidateName) {
+  showModal("Loading...", "<p>Fetching reference data...</p>");
+  
+  const res = await apiCall('getSubmissionData', { assignmentId: assignmentId });
+  if (!res.success) {
+    showModal("Error", res.message);
+    return;
+  }
+  
+  const data = res.data;
+  let tableRows = "";
+  for (let key in data) {
+    if (key !== 'candidateName' && key !== 'refereeName') {
+      // Format the key from camelCase to Title Case
+      let formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); });
+      tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">${formattedKey}</td><td style="padding:10px; border:1px solid #ddd;">${data[key] || 'N/A'}</td></tr>`;
+    }
+  }
+
+  document.getElementById('modalTitle').innerText = "Reference Report: " + candidateName;
+  document.getElementById('modalMessage').innerHTML = `
+    <div id="pdfPrintableArea" style="background:white; padding:20px; color:#333; font-family:Arial, sans-serif;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #004C45; padding-bottom:10px; margin-bottom:20px;">
+        <img src="${document.getElementById('headerLogo').src}" style="max-height:70px;">
+        <h2 style="color:#004C45; margin:0; text-align:right;">International School Dhaka</h2>
+      </div>
+      <h3 style="text-align:center; color:#FF5C35; margin-bottom:20px;">Teacher Reference Report</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">Referee Name</td><td style="padding:10px; border:1px solid #ddd;">${data.refereeName}</td></tr>
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">Candidate Name</td><td style="padding:10px; border:1px solid #ddd;">${data.candidateName}</td></tr>
+        ${tableRows}
+      </table>
+      <p style="font-size:12px; color:#777; text-align:center; margin-top:40px;">Generated securely on ${new Date().toLocaleString()}</p>
+    </div>
+  `;
+  
+  document.querySelector('.modal-footer').innerHTML = `
+    <button onclick="printPDF()" class="btn btn-primary" style="width:auto; padding:10px 20px; margin-right:10px;">Download as PDF</button>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
+  `;
+  
+  document.querySelector('.modal-box').style.maxWidth = '800px';
+  document.getElementById('customModal').style.display = 'flex';
+}
+
+function printPDF() {
+  const printContents = document.getElementById('pdfPrintableArea').innerHTML;
+  const originalContents = document.body.innerHTML;
+  
+  // Create a hidden iframe for printing
+  const printFrame = document.createElement('iframe');
+  printFrame.style.position = 'absolute';
+  printFrame.style.width = '0';
+  printFrame.style.height = '0';
+  printFrame.style.border = '0';
+  document.body.appendChild(printFrame);
+  
+  const doc = printFrame.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>Reference Report</title>
+        <style>
+          @page { size: A4; margin: 20mm; }
+          body { font-family: Arial, sans-serif; color: #333; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        </style>
+      </head>
+      <body>${printContents}</body>
+    </html>
+  `);
+  doc.close();
+  
+  printFrame.contentWindow.focus();
+  printFrame.contentWindow.print();
+  
+  setTimeout(() => document.body.removeChild(printFrame), 1000);
+}
 
 function generateCaptcha() {
   const a = Math.floor(Math.random() * 10) + 1;
@@ -214,7 +262,6 @@ async function loadDashboard() {
             date: subs[i][0], 
             candidate: data.candidateName || "Unknown", 
             referee: data.refereeName || "Unknown", 
-            pdf: subs[i][3], 
             recommendation: data.recommendation || "N/A" 
           });
           count++;
@@ -242,12 +289,11 @@ async function loadDashboard() {
     html += '</div>';
 
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
-    html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th><th style="padding:10px; border-bottom:2px solid #ddd;">Action</th></tr>';
-    if(recent.length === 0) html += '<tr><td colspan="5" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
+    html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th></tr>';
+    if(recent.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
     recent.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
-      // Changed the link to call showPDFModal
-      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.pdf + '\', \'' + r.candidate + '\')" style="color:var(--isd-red); font-weight:bold; text-decoration:none;">View PDF</a></td></tr>';
+      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td></tr>';
     });
     html += '</table></div></div>';
 
@@ -325,7 +371,7 @@ async function loadManageRefereesPage() {
     tHtml += '<tr style="background:#eee;"><td colspan="5" style="padding:10px; font-weight:bold; color:var(--isd-teal); cursor:pointer;" onclick="toggleSubmitted()">▼ View Submitted Assignments (' + submittedItems.length + ')</td></tr>';
     tHtml += '<tbody id="submittedRows" style="display:none;">';
     submittedItems.forEach(s => {
-      tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#38D430; font-weight:bold;">Submitted</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.pdf + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td></tr>';
+      tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#38D430; font-weight:bold;">Submitted</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.id + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td></tr>';
     });
     tHtml += '</tbody>';
   }
@@ -432,15 +478,11 @@ async function sendDynamicEmail() {
   
   const res = await apiCall('sendEmail', { settings: settings });
   if(res.success) {
-    // Get the candidate name from the dropdown to show in the success modal
     let sel = document.getElementById('assignSelect');
     let opt = sel.options[sel.selectedIndex];
     let cName = opt.getAttribute('data-cand');
     
-    // Show custom success message
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
-    
-    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
@@ -462,7 +504,7 @@ async function loadRefereeView() {
     html += '<td style="padding:10px; font-weight:bold;">' + s.candidate + '</td>';
     if(s.status === 'Submitted') {
       html += '<td style="padding:10px; color:#38D430; font-weight:bold;">Submitted & Locked</td>';
-      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.pdf + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td>';
+      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + s.id + '\', \'' + s.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a></td>';
     } else {
       html += '<td style="padding:10px; color:#FFDA00; font-weight:bold;">Pending</td>';
       html += '<td style="padding:10px;"><button onclick="loadRefForm(\'' + s.candidate + '\', \'' + currentUser.name + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:12px;">Fill Form</button></td>';
@@ -480,7 +522,7 @@ async function loadRefForm(candName, refUser) {
   if(!assignId) return showModal("Error", "Assignment not found or already submitted.");
   
   let html = '<div class="card" style="max-width: 800px; margin: 20px auto;"><h3>Reference Form: ' + candName + '</h3>';
-  html += '<form id="refForm" onsubmit="submitForm(event, \'' + assignId + '\', \'' + candName + '\')">';
+  html += '<form id="refForm" onsubmit="confirmSubmission(event, \'' + assignId + '\', \'' + candName + '\')">';
   html += '<input type="hidden" name="candidateName" value="' + candName + '">';
   html += '<input type="hidden" name="refereeName" value="' + refUser + '">';
   html += '<div class="input-group"><label>How long have you known the candidate?</label><input type="text" name="knownDuration" required></div>';
@@ -493,19 +535,46 @@ async function loadRefForm(candName, refUser) {
   document.getElementById('activeFormContainer').innerHTML = html;
 }
 
-async function submitForm(e, assignId, candName) {
-  if(e) e.preventDefault();
-  if(!confirm("Are you sure? You cannot edit this form after submission.")) return;
+// 🔥 CRITICAL FIX: Replaced native confirm() with custom modal
+function confirmSubmission(e, assignId, candName) {
+  e.preventDefault();
   
+  // Gather form data
   const form = document.getElementById('refForm');
   const data = {};
-  for (let i = 0; i < form.elements.length; i++) if (form.elements[i].name) data[form.elements[i].name] = form.elements[i].value;
+  for (let i = 0; i < form.elements.length; i++) {
+    if (form.elements[i].name) data[form.elements[i].name] = form.elements[i].value;
+  }
+  
+  pendingFormSubmission = { assignId: assignId, candName: candName, data: data };
+  
+  // Show custom modal
+  document.getElementById('modalTitle').innerText = "Confirm Submission";
+  document.getElementById('modalMessage').innerHTML = "<p>Are you sure you want to submit this reference?</p><p><strong>Note:</strong> You cannot edit this form after submission.</p>";
+  document.querySelector('.modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="submitFormData()" style="width:auto; margin-right:10px;">OK, Submit</button>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
+  `;
+  document.getElementById('customModal').style.display = 'flex';
+}
+
+async function submitFormData() {
+  if (!pendingFormSubmission) return;
+  
+  const { assignId, candName, data } = pendingFormSubmission;
+  
+  // Change modal to loading
+  document.getElementById('modalTitle').innerText = "Submitting...";
+  document.getElementById('modalMessage').innerHTML = "<p>Please wait while we save your reference...</p>";
+  document.querySelector('.modal-footer').innerHTML = ``;
   
   const res = await apiCall('submitForm', { formData: data, username: currentUser.name, assignmentId: assignId });
   
   if(res.success) {
-    showModal("Success", "Form submitted! HR has been notified.");
+    showModal("Success", "Form submitted successfully! HR has been notified.");
     showModule('form', document.getElementById('nav-form'));
+  } else {
+    showModal("Error", res.message);
   }
 }
 
@@ -542,13 +611,11 @@ function getAdminHTML() {
   html += '</table></div>';
   html += '<button onclick="createNewUser()" class="btn btn-primary">Create User</button></div>';
   
-  // Trigger the async load of the user table
   setTimeout(loadUserManagementTable, 100);
   
   return html;
 }
 
-// --- NEW USER MANAGEMENT LOGIC ---
 async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
@@ -594,7 +661,6 @@ async function deleteSystemUser(username) {
   showModal("User Deleted", res.message);
   loadUserManagementTable();
 }
-// ---------------------------------
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
 
@@ -656,6 +722,6 @@ async function createNewUser() {
     document.getElementById('newUser').value = ''; 
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
-    loadUserManagementTable(); // Refresh the user table
+    loadUserManagementTable();
   }
 }
