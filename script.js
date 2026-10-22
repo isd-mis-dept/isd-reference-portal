@@ -433,12 +433,23 @@ async function sendDynamicEmail() {
     body: document.getElementById('emailBody').value 
   };
   
+  // Get the selected assignment ID
+  let sel = document.getElementById('assignSelect');
+  let opt = sel.options[sel.selectedIndex];
+  let assignId = opt.value;
+  let cName = opt.getAttribute('data-cand');
+  
+  if(!assignId) return showModal("Error", "Please select a referee first.");
+
   const res = await apiCall('sendEmail', { settings: settings });
+  
   if(res.success) {
-    let sel = document.getElementById('assignSelect');
-    let opt = sel.options[sel.selectedIndex];
-    let cName = opt.getAttribute('data-cand');
+    // 🔥 NEW: Mark the assignment as "Sent" in the database
+    await apiCall('markAssignmentAsSent', { assignmentId: assignId });
+    
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
+    
+    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
