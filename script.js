@@ -1,7 +1,8 @@
-const API_URL = "https://script.google.com/macros/s/YOUR_ACTUAL_SCRIPT_ID_HERE/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxMp3hM2AKZtzYlYXw2FSPmx_xGIysmLXSNTZqO_y0HO4i7Da8SwsKOQK2VA3ZOxV8V/exec";
 
 let currentUser = null;
-let defaultSettings = { reply: "hr@isdbd.org", bcc: "hr@isdbd.org", loginUrl: "" };
+// Default fallbacks (will be overwritten by Google Sheet settings on load)
+let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
 
@@ -9,10 +10,7 @@ let currentCaptchaAnswer = 0;
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
   document.getElementById('modalMessage').innerHTML = message;
-  
-  // Reset modal buttons to standard OK
   document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">OK</button>`;
-  
   document.getElementById('customModal').style.display = 'flex';
 }
 
@@ -21,21 +19,16 @@ function showPDFModal(pdfUrl, candidateName) {
   document.getElementById('modalMessage').innerHTML = `
     <iframe src="${pdfUrl}" style="width:100%; height:60vh; border:none; border-radius:4px;"></iframe>
   `;
-  
-  // Add download and close buttons
   document.querySelector('.modal-footer').innerHTML = `
     <a href="${pdfUrl}" target="_blank" download class="btn btn-primary" style="width:auto; text-decoration:none; padding:10px 20px; display:inline-block; margin-right:10px;">Download PDF</a>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:var(--isd-teal);">Close</button>
   `;
-  
-  // Make modal wider for the PDF
   document.querySelector('.modal-box').style.maxWidth = '900px';
   document.getElementById('customModal').style.display = 'flex';
 }
 
 function closeModal() { 
   document.getElementById('customModal').style.display = 'none';
-  // Reset modal box width
   document.querySelector('.modal-box').style.maxWidth = '450px';
 }
 
@@ -65,7 +58,7 @@ async function apiCall(action, data = {}) {
   }
 }
 
-// --- INIT ---
+// --- INIT (Loads Settings from Google Sheet) ---
 window.onload = async function() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
@@ -73,14 +66,18 @@ window.onload = async function() {
 
   generateCaptcha(); 
   
+  // Fetch Logo
   const logoUrl = await apiCall('getLogo');
   if (logoUrl) {
     document.getElementById('loginLogo').src = logoUrl;
     document.getElementById('headerLogo').src = logoUrl;
   }
 
+  // Fetch Dynamic Email Settings from Google Sheet
   const settings = await apiCall('getSettings');
-  if(settings) defaultSettings = settings;
+  if(settings) {
+    defaultSettings = settings; // Overwrites the fallback variables
+  }
 };
 
 function forgotPassword() {
@@ -228,7 +225,6 @@ async function loadDashboard() {
     if(recent.length === 0) html += '<tr><td colspan="5" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
     recent.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
-      // Changed the link to call showPDFModal
       html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td><td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.pdf + '\', \'' + r.candidate + '\')" style="color:var(--isd-red); font-weight:bold; text-decoration:none;">View PDF</a></td></tr>';
     });
     html += '</table></div></div>';
@@ -370,6 +366,7 @@ async function loadSendEmailPage() {
   }
   html += '</select></div>';
 
+  // These fields now load directly from the dynamically fetched defaultSettings
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail"></div>';
   html += '<div class="input-group"><label>Reply-To Email</label><input type="email" id="replyTo" value="' + defaultSettings.reply + '"></div>';
   html += '<div class="input-group"><label>BCC Email</label><input type="email" id="bccEmail" value="' + defaultSettings.bcc + '"></div>';
@@ -388,7 +385,9 @@ function populateEmailFields() {
   let rName = opt.getAttribute('data-name');
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
-  let formLink = defaultSettings.loginUrl || window.location.href;
+  
+  // Uses dynamic loginUrl from settings
+  let formLink = defaultSettings.loginUrl || window.location.href; 
   
   document.getElementById('toEmail').value = rEmail;
   document.getElementById('emailSubject').value = "Reference Request for " + cName;
@@ -414,15 +413,11 @@ async function sendDynamicEmail() {
   
   const res = await apiCall('sendEmail', { settings: settings });
   if(res.success) {
-    // Get the candidate name from the dropdown to show in the success modal
     let sel = document.getElementById('assignSelect');
     let opt = sel.options[sel.selectedIndex];
     let cName = opt.getAttribute('data-cand');
     
-    // Show custom success message
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
-    
-    // Refresh the dropdown to remove the sent candidate
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
@@ -494,6 +489,7 @@ async function submitForm(e, assignId, candName) {
 // --- ADMIN MODULE ---
 function getAdminHTML() {
   var html = '<div class="card"><h3>Global System Settings</h3>';
+  // These values are populated from the fetched defaultSettings
   html += '<div class="input-group"><label>System Login URL (Used in Email Button)</label><input type="text" id="defLoginUrl" value="' + defaultSettings.loginUrl + '" placeholder="https://..."></div>';
   html += '<div class="input-group"><label>Default Reply-To Email</label><input type="email" id="defReplyTo" value="' + defaultSettings.reply + '"></div>';
   html += '<div class="input-group"><label>Default BCC Email</label><input type="email" id="defBcc" value="' + defaultSettings.bcc + '"></div>';
@@ -524,13 +520,11 @@ function getAdminHTML() {
   html += '</table></div>';
   html += '<button onclick="createNewUser()" class="btn btn-primary">Create User</button></div>';
   
-  // Trigger the async load of the user table
   setTimeout(loadUserManagementTable, 100);
   
   return html;
 }
 
-// --- NEW USER MANAGEMENT LOGIC ---
 async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
@@ -576,7 +570,6 @@ async function deleteSystemUser(username) {
   showModal("User Deleted", res.message);
   loadUserManagementTable();
 }
-// ---------------------------------
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
 
@@ -591,9 +584,12 @@ async function saveDefSettings() {
   const bcc = document.getElementById('defBcc').value;
   const login = document.getElementById('defLoginUrl').value;
   
+  // Saves to Google Sheet
   await apiCall('saveSettings', { replyTo: reply, bcc: bcc, loginUrl: login });
+  
+  // Updates the local variable so the UI reflects changes instantly
   defaultSettings = { reply: reply, bcc: bcc, loginUrl: login };
-  showModal("Success", "Settings saved!");
+  showModal("Success", "Settings saved successfully! The email fields have been updated globally.");
 }
 
 function resizeAndUploadLogo() {
@@ -638,6 +634,6 @@ async function createNewUser() {
     document.getElementById('newUser').value = ''; 
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
-    loadUserManagementTable(); // Refresh the user table
+    loadUserManagementTable(); 
   }
 }
