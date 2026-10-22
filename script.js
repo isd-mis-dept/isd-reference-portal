@@ -1,7 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxMp3hM2AKZtzYlYXw2FSPmx_xGIysmLXSNTZqO_y0HO4i7Da8SwsKOQK2VA3ZOxV8V/exec";
 
 let currentUser = null;
-// Default fallbacks (will be overwritten by Google Sheet settings on load)
 let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
@@ -42,27 +41,19 @@ function generateCaptcha() {
   document.getElementById('captchaInput').value = '';
 }
 
-// --- API CALLER ---
+// --- NEW BULLETPROOF API CALLER ---
 async function apiCall(action, data = {}) {
   try {
-    // 1. Create URL-encoded form data (This bypasses CORS completely)
-    const formData = new URLSearchParams();
-    formData.append('action', action);
+    // 1. Create a single JSON object
+    const payload = JSON.stringify({ action: action, ...data });
     
-    // Append all data keys to the form
-    for (const key in data) {
-      if (typeof data[key] === 'object') {
-        formData.append(key, JSON.stringify(data[key]));
-      } else {
-        formData.append(key, data[key]);
-      }
-    }
-
-    // 2. Send the POST request
+    // 2. Send as text/plain to bypass CORS
     const response = await fetch(API_URL, {
       method: 'POST',
-      body: formData,
-      // No custom headers needed here, which prevents the browser from blocking it
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: payload
     });
     
     // 3. Parse the JSON response
@@ -73,7 +64,7 @@ async function apiCall(action, data = {}) {
   }
 }
 
-// --- INIT (Loads Settings from Google Sheet) ---
+// --- INIT ---
 window.onload = async function() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
@@ -81,17 +72,15 @@ window.onload = async function() {
 
   generateCaptcha(); 
   
-  // Fetch Logo
   const logoUrl = await apiCall('getLogo');
   if (logoUrl) {
     document.getElementById('loginLogo').src = logoUrl;
     document.getElementById('headerLogo').src = logoUrl;
   }
 
-  // Fetch Dynamic Email Settings from Google Sheet
   const settings = await apiCall('getSettings');
   if(settings) {
-    defaultSettings = settings; // Overwrites the fallback variables
+    defaultSettings = settings; 
   }
 };
 
@@ -381,7 +370,6 @@ async function loadSendEmailPage() {
   }
   html += '</select></div>';
 
-  // These fields now load directly from the dynamically fetched defaultSettings
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail"></div>';
   html += '<div class="input-group"><label>Reply-To Email</label><input type="email" id="replyTo" value="' + defaultSettings.reply + '"></div>';
   html += '<div class="input-group"><label>BCC Email</label><input type="email" id="bccEmail" value="' + defaultSettings.bcc + '"></div>';
@@ -400,8 +388,6 @@ function populateEmailFields() {
   let rName = opt.getAttribute('data-name');
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
-  
-  // Uses dynamic loginUrl from settings
   let formLink = defaultSettings.loginUrl || window.location.href; 
   
   document.getElementById('toEmail').value = rEmail;
@@ -504,7 +490,6 @@ async function submitForm(e, assignId, candName) {
 // --- ADMIN MODULE ---
 function getAdminHTML() {
   var html = '<div class="card"><h3>Global System Settings</h3>';
-  // These values are populated from the fetched defaultSettings
   html += '<div class="input-group"><label>System Login URL (Used in Email Button)</label><input type="text" id="defLoginUrl" value="' + defaultSettings.loginUrl + '" placeholder="https://..."></div>';
   html += '<div class="input-group"><label>Default Reply-To Email</label><input type="email" id="defReplyTo" value="' + defaultSettings.reply + '"></div>';
   html += '<div class="input-group"><label>Default BCC Email</label><input type="email" id="defBcc" value="' + defaultSettings.bcc + '"></div>';
@@ -599,10 +584,7 @@ async function saveDefSettings() {
   const bcc = document.getElementById('defBcc').value;
   const login = document.getElementById('defLoginUrl').value;
   
-  // Saves to Google Sheet
   await apiCall('saveSettings', { replyTo: reply, bcc: bcc, loginUrl: login });
-  
-  // Updates the local variable so the UI reflects changes instantly
   defaultSettings = { reply: reply, bcc: bcc, loginUrl: login };
   showModal("Success", "Settings saved successfully! The email fields have been updated globally.");
 }
