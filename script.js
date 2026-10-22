@@ -679,7 +679,7 @@ async function loadUserManagementTable() {
     
     html += '<td style="padding:10px; display:flex; gap:5px; flex-wrap:wrap;">';
     // 🔥 NEW: Edit Button
-    html += '<button onclick="editStaffName(\'' + u.username + '\', \'' + (u.staffName || '') + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Edit</button>';
+    html += '<button onclick="editUserDetails(\'' + u.username + '\', \'' + (u.staffName || '') + '\', \'' + u.role + '\', \'' + u.expiry + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Edit</button>';
     html += '<button onclick="toggleUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-teal);">' + toggleText + '</button>';
     html += '<button onclick="adminResetPass(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Reset Pass</button>';
     html += '<button onclick="deleteSystemUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-red);">Delete</button>';
@@ -694,31 +694,67 @@ async function toggleUser(username) {
   showModal("Status Updated", res.message);
   loadUserManagementTable();
 }
-function editStaffName(username, currentName) {
-  // Override the default modal footer to show an input field and Save button
-  document.getElementById('modalTitle').innerText = "Edit Staff Name";
+function editUserDetails(username, currentName, currentRole, currentExpiry) {
+  // Handle the "No Expiry" text so the date picker works
+  let dateValue = "";
+  if (currentExpiry && currentExpiry !== "No Expiry" && !currentExpiry.includes("(Expired)")) {
+    // Convert "Oct 22, 2026" to "2026-10-22" for the date input
+    try {
+      let d = new Date(currentExpiry);
+      dateValue = d.toISOString().split('T')[0];
+    } catch(e) {}
+  }
+
+  document.getElementById('modalTitle').innerText = "Edit User Details";
   document.getElementById('modalMessage').innerHTML = `
-    <p>Editing Staff Name for: <b>${username}</b></p>
-    <input type="text" id="editStaffNameInput" value="${currentName}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; margin-top:10px; font-size:15px;">
+    <p>Editing account for: <b>${username}</b></p>
+    
+    <div class="input-group" style="margin-top:15px;">
+      <label>Staff Name</label>
+      <input type="text" id="editStaffNameInput" value="${currentName}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+    </div>
+    
+    <div class="input-group">
+      <label>Role</label>
+      <select id="editRoleInput" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+        <option value="Admin" ${currentRole === 'Admin' ? 'selected' : ''}>Admin</option>
+        <option value="HR" ${currentRole === 'HR' ? 'selected' : ''}>HR</option>
+        <option value="Referee" ${currentRole === 'Referee' ? 'selected' : ''}>Referee</option>
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label>Access Expiry Date (Leave blank for No Expiry)</label>
+      <input type="date" id="editExpiryInput" value="${dateValue}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+    </div>
   `;
   
   document.querySelector('.modal-footer').innerHTML = `
-    <button class="btn btn-primary" onclick="saveStaffName('${username}')" style="width:auto; margin-right:10px;">Save Changes</button>
+    <button class="btn btn-primary" onclick="saveUserDetails('${username}')" style="width:auto; margin-right:10px;">Save Changes</button>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
   `;
   
   document.getElementById('customModal').style.display = 'flex';
 }
 
-async function saveStaffName(username) {
+async function saveUserDetails(username) {
   const newName = document.getElementById('editStaffNameInput').value.trim();
+  const newRole = document.getElementById('editRoleInput').value;
+  const newExpiry = document.getElementById('editExpiryInput').value;
+  
   if(!newName) return showModal("Error", "Staff Name cannot be empty.");
   
-  const res = await apiCall('updateStaffName', { username: username, newStaffName: newName });
+  const res = await apiCall('updateUserDetails', { 
+    username: username, 
+    newStaffName: newName,
+    newRole: newRole,
+    newExpiry: newExpiry
+  });
+  
   if(res.success) {
     closeModal();
     showModal("Success", res.message);
-    loadUserManagementTable(); // Refresh the table to show the new name
+    loadUserManagementTable(); // Refresh the table
   } else {
     showModal("Error", res.message);
   }
