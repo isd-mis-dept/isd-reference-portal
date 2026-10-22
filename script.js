@@ -4,7 +4,7 @@ let currentUser = null;
 let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
-let pendingFormSubmission = null; // Holds data while modal is open
+let pendingFormSubmission = null;
 
 // --- UI HELPERS ---
 function showModal(title, message) {
@@ -23,10 +23,8 @@ function closeModal() {
 
 function showSystemError(err) { showModal("System Alert", err); }
 
-// 🔥 NEW PDF MODAL LOGIC (Renders HTML table and prints)
 async function showPDFModal(assignmentId, candidateName) {
   showModal("Loading...", "<p>Fetching reference data...</p>");
-  
   const res = await apiCall('getSubmissionData', { assignmentId: assignmentId });
   if (!res.success) {
     showModal("Error", res.message);
@@ -37,7 +35,6 @@ async function showPDFModal(assignmentId, candidateName) {
   let tableRows = "";
   for (let key in data) {
     if (key !== 'candidateName' && key !== 'refereeName') {
-      // Format the key from camelCase to Title Case
       let formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); });
       tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">${formattedKey}</td><td style="padding:10px; border:1px solid #ddd;">${data[key] || 'N/A'}</td></tr>`;
     }
@@ -71,9 +68,6 @@ async function showPDFModal(assignmentId, candidateName) {
 
 function printPDF() {
   const printContents = document.getElementById('pdfPrintableArea').innerHTML;
-  const originalContents = document.body.innerHTML;
-  
-  // Create a hidden iframe for printing
   const printFrame = document.createElement('iframe');
   printFrame.style.position = 'absolute';
   printFrame.style.width = '0';
@@ -113,7 +107,6 @@ function generateCaptcha() {
   document.getElementById('captchaInput').value = '';
 }
 
-// --- API CALLER ---
 async function apiCall(action, data = {}) {
   try {
     const payload = JSON.stringify({ action: action, ...data });
@@ -129,24 +122,18 @@ async function apiCall(action, data = {}) {
   }
 }
 
-// --- INIT ---
 window.onload = async function() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
   }
-
   generateCaptcha(); 
-  
   const logoUrl = await apiCall('getLogo');
   if (logoUrl) {
     document.getElementById('loginLogo').src = logoUrl;
     document.getElementById('headerLogo').src = logoUrl;
   }
-
   const settings = await apiCall('getSettings');
-  if(settings) {
-    defaultSettings = settings; 
-  }
+  if(settings) defaultSettings = settings; 
 };
 
 function forgotPassword() {
@@ -155,7 +142,6 @@ function forgotPassword() {
 
 async function handleLogin(e) {
   if (e) e.preventDefault();
-  
   const userAnswer = parseInt(document.getElementById('captchaInput').value);
   if (userAnswer !== currentCaptchaAnswer) {
     document.getElementById('captchaError').style.display = 'block';
@@ -228,66 +214,45 @@ function showModule(moduleName, el, e) {
 // --- DASHBOARD MODULE ---
 async function loadDashboard() {
   const rawData = await apiCall('getDashboardStats');
-  
   try {
     if (!rawData) throw new Error("No data received");
-    
     let subs = rawData.rawSubmissions || [];
     let assign = rawData.rawAssignments || [];
-    
     let totalSubmissions = subs.length;
     let pending = 0;
-    
-    for (let i = 0; i < assign.length; i++) {
-      if (assign[i][3] === "Pending") pending++;
-    }
-
+    for (let i = 0; i < assign.length; i++) if (assign[i][3] === "Pending") pending++;
     let recent = [];
     let analytics = { classroom: {Excellent:0, Good:0, Satisfactory:0}, recommendation: {Highly:0, Recommended:0, Not:0} };
     let count = 0;
-    
     for (let i = subs.length - 1; i >= 0; i--) {
       try {
         let data = JSON.parse(subs[i][2]);
-        
         if(data.classroom) analytics.classroom[data.classroom] = (analytics.classroom[data.classroom] || 0) + 1;
         if(data.recommendation) {
           if(data.recommendation.includes("Highly")) analytics.recommendation.Highly++;
           else if(data.recommendation.includes("Not")) analytics.recommendation.Not++;
           else analytics.recommendation.Recommended++;
         }
-        
         if (count < 5) {
-          recent.push({ 
-            date: subs[i][0], 
-            candidate: data.candidateName || "Unknown", 
-            referee: data.refereeName || "Unknown", 
-            recommendation: data.recommendation || "N/A" 
-          });
+          recent.push({ date: subs[i][0], candidate: data.candidateName || "Unknown", referee: data.refereeName || "Unknown", recommendation: data.recommendation || "N/A" });
           count++;
         }
       } catch(e) { }
     }
-
     let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">System Overview</h2>';
-    
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px;">';
     html += '<div class="card" style="border-top-color:#38D430; text-align:center;"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
     html += '<div class="card" style="border-top-color:#FFDA00; text-align:center;"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
     html += '</div>';
-
-    html += '<div class="card"><h3>Reference Insights</h3>';
-    html += '<p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
+    html += '<div class="card"><h3>Reference Insights</h3><p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
     html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">';
     html += '<div><h4 style="color:var(--isd-teal);">Classroom Management</h4><p>Excellent: <b>' + analytics.classroom.Excellent + '</b></p><p>Good: <b>' + analytics.classroom.Good + '</b></p><p>Satisfactory: <b>' + analytics.classroom.Satisfactory + '</b></p></div>';
     html += '<div><h4 style="color:var(--isd-teal);">Overall Recommendation</h4><p>Highly Recommended: <b>' + analytics.recommendation.Highly + '</b></p><p>Recommended: <b>' + analytics.recommendation.Recommended + '</b></p><p>Not Recommended: <b>' + analytics.recommendation.Not + '</b></p></div>';
     html += '</div></div>';
-
     html += '<div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
     html += '<button onclick="loadAuditLogs()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">📋 View Audit Trail</button>';
     html += '</div>';
-
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
     html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th></tr>';
     if(recent.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
@@ -295,11 +260,8 @@ async function loadDashboard() {
       let d = new Date(r.date).toLocaleDateString();
       html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td></tr>';
     });
-    html += '</table></div></div>';
-
-    html += '<div id="auditArea"></div>';
+    html += '</table></div></div><div id="auditArea"></div>';
     document.getElementById('contentArea').innerHTML = html;
-    
   } catch (err) {
     document.getElementById('contentArea').innerHTML = '<div class="card"><h3 style="color:red;">Dashboard Error</h3><p>' + err.message + '</p></div>';
   }
@@ -321,7 +283,6 @@ async function downloadCSV() {
 async function loadAuditLogs() {
   document.getElementById('auditArea').innerHTML = "<p>Loading logs...</p>";
   const logs = await apiCall('getAuditLogs');
-  
   let html = '<div class="card"><h3>Audit Trail (Last 50 Emails)</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Time</th><th style="padding:10px;">Sent By</th><th style="padding:10px;">To</th><th style="padding:10px;">BCC</th><th style="padding:10px;">Subject</th><th style="padding:10px;">Status</th></tr>';
   if(!logs || logs.length === 0) html += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No email logs found.</td></tr>';
@@ -341,16 +302,13 @@ async function loadManageRefereesPage() {
   html += '<div class="form-row"><div class="input-group"><label>Referee Username (System Login)</label><input type="text" id="refUser"></div>';
   html += '<div class="input-group"><label>Referee Official Name</label><input type="text" id="refNameOfficial"></div></div>';
   html += '<div class="input-group"><label>Referee Email</label><input type="email" id="refEmail"></div>';
-  
   html += '<div style="background:#f9f9f9; padding:15px; border-radius:5px; border:1px solid #eee; margin-bottom:15px;">';
   html += '<h4 style="margin-top:0; color:var(--isd-teal);">Candidates</h4>';
   html += '<div style="display:flex; gap:10px; margin-bottom:10px;"><input type="text" id="candInput" placeholder="Candidate Full Name" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:4px;">';
   html += '<button onclick="addCandidateToList()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">+ Add Candidate</button></div>';
   html += '<table style="width:100%; border-collapse:collapse; font-size:14px;" id="candTable"><tr style="background:#eee; text-align:left;"><th style="padding:8px;">Candidate Name</th><th style="padding:8px; width:50px;">Action</th></tr></table></div>';
-  
   html += '<button onclick="saveRefereeAssignment()" class="btn btn-primary">Add Referee and Candidate(s)</button></div>';
   html += '<div class="card"><h3>Assignment Overview</h3><div id="pendingAssignmentsTable">Loading...</div></div>';
-  
   document.getElementById('contentArea').innerHTML = html;
   
   const all = await apiCall('getAllAssignments');
@@ -358,15 +316,12 @@ async function loadManageRefereesPage() {
 
   let tHtml = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
   tHtml += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Referee (User)</th><th style="padding:10px;">Official Name</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>';
-  
   let pendingItems = all.filter(a => a.status === 'Pending');
   let submittedItems = all.filter(a => a.status === 'Submitted');
-  
   if(pendingItems.length === 0) tHtml += '<tr><td colspan="5" style="padding:10px; text-align:center;">No pending assignments.</td></tr>';
   pendingItems.forEach(p => {
     tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + p.username + '</td><td style="padding:10px;">' + p.officialName + '</td><td style="padding:10px; font-weight:bold;">' + p.candidate + '</td><td style="padding:10px; color:#FFDA00; font-weight:bold;">Pending</td><td style="padding:10px;"><button onclick="resetRefPassword(\'' + p.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:12px; background-color:var(--isd-teal);">Reset Password</button></td></tr>';
   });
-  
   if(submittedItems.length > 0) {
     tHtml += '<tr style="background:#eee;"><td colspan="5" style="padding:10px; font-weight:bold; color:var(--isd-teal); cursor:pointer;" onclick="toggleSubmitted()">▼ View Submitted Assignments (' + submittedItems.length + ')</td></tr>';
     tHtml += '<tbody id="submittedRows" style="display:none;">';
@@ -375,7 +330,6 @@ async function loadManageRefereesPage() {
     });
     tHtml += '</tbody>';
   }
-  
   tHtml += '</table></div>';
   document.getElementById('pendingAssignmentsTable').innerHTML = tHtml;
 }
@@ -390,7 +344,6 @@ function addCandidateToList() {
   if(!val) return;
   dynamicCandidates.push(val);
   document.getElementById('candInput').value = '';
-  
   let table = document.getElementById('candTable');
   let row = table.insertRow(-1);
   let cell1 = row.insertCell(0); cell1.innerText = val;
@@ -402,14 +355,11 @@ async function saveRefereeAssignment() {
   let u = document.getElementById('refUser').value;
   let n = document.getElementById('refNameOfficial').value;
   let e = document.getElementById('refEmail').value;
-  
   if(!u || !n || !e) return showModal("Error", "Please fill all referee fields.");
   if(dynamicCandidates.length === 0) return showModal("Error", "Please add at least one candidate.");
-  
   const res = await apiCall('createRefereeAssignment', {
     username: u, officialName: n, email: e, candidates: dynamicCandidates
   });
-  
   showModal("Success", res.message);
   loadManageRefereesPage(); 
 }
@@ -423,28 +373,26 @@ async function resetRefPassword(username) {
 // --- SEND EMAIL MODULE ---
 async function loadSendEmailPage() {
   const pending = await apiCall('getPendingAssignments');
-  
   let html = '<div class="card"><h3>Send Custom Reference Request</h3>';
   html += '<div class="input-group"><label>Select Referee Assignment to Email</label><select id="assignSelect" onchange="populateEmailFields()">';
   html += '<option value="">-- Select a Referee --</option>';
   if(pending) {
     pending.forEach(p => {
-      html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '">' + p.officialName + ' (' + p.candidate + ')</option>';
+      html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '" data-user="' + p.username + '">' + p.officialName + ' (' + p.candidate + ')</option>';
     });
   }
   html += '</select></div>';
-
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail"></div>';
   html += '<div class="input-group"><label>Reply-To Email</label><input type="email" id="replyTo" value="' + defaultSettings.reply + '"></div>';
   html += '<div class="input-group"><label>BCC Email</label><input type="email" id="bccEmail" value="' + defaultSettings.bcc + '"></div>';
   html += '<div class="input-group"><label>Subject</label><input type="text" id="emailSubject"></div>';
-  html += '<div class="input-group"><label>Email Body (HTML allowed)</label><textarea id="emailBody" rows="8"></textarea></div>';
+  html += '<div class="input-group"><label>Email Body (HTML allowed)</label><textarea id="emailBody" rows="12"></textarea></div>';
   html += '<button onclick="sendDynamicEmail()" class="btn btn-primary">Send Email to Referee</button></div>';
-  
   document.getElementById('contentArea').innerHTML = html;
 }
 
-function populateEmailFields() {
+// 🔥 DYNAMIC EMAIL GENERATION
+async function populateEmailFields() {
   let sel = document.getElementById('assignSelect');
   let opt = sel.options[sel.selectedIndex];
   if(!opt.value) return;
@@ -452,15 +400,24 @@ function populateEmailFields() {
   let rName = opt.getAttribute('data-name');
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
+  let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
   
+  // Fetch or reset the referee's password
+  const passRes = await apiCall('getRefereeCredentials', { username: rUser });
+  let tempPass = passRes || "Please use your existing password";
+
   document.getElementById('toEmail').value = rEmail;
-  document.getElementById('emailSubject').value = "Reference Request for " + cName;
+  document.getElementById('emailSubject').value = "ISD Reference Request: " + cName;
   
   let body = "Dear <b>" + rName + "</b>,<br><br>";
-  body += "We hope this message finds you well. International School Dhaka is currently in the process of reviewing candidates for an open position, and we are reaching out to you as a professional reference for <b>" + cName + "</b>.<br><br>";
-  body += "Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below:<br><br>";
-  body += "<div style='text-align:center; margin: 30px 0;'><a href='" + formLink + "' style='background-color:#004C45; color:white; padding:14px 30px; text-decoration:none; border-radius:4px; font-weight:bold; font-family:Arial;'>Access Reference Form</a></div>";
+  body += "We hope this message finds you well. International School Dhaka is currently reviewing candidates and we are reaching out to you as a professional reference for <b>" + cName + "</b>.<br><br>";
+  body += "<div style='background-color:#f4f7f6; padding:20px; border-left:4px solid #FF5C35; border-radius:4px; margin:20px 0;'>";
+  body += "<p style='margin:5px 0;'><strong>Your Login Username:</strong> " + rUser + "</p>";
+  body += "<p style='margin:5px 0;'><strong>Your Password:</strong> " + tempPass + "</p>";
+  body += "</div>";
+  body += "Please click the button below to access the secure portal and complete the reference form:<br><br>";
+  body += "<div style='text-align:center; margin: 30px 0;'><a href='" + formLink + "' style='background-color:#38D430; color:white; padding:14px 30px; text-decoration:none; border-radius:4px; font-weight:bold; font-family:Arial; display:inline-block;'>Login & Complete Form</a></div>";
   body += "Thank you for your time and cooperation.<br><br>";
   body += "Warm regards,<br><b>ISD HR Team</b><br>International School Dhaka";
   
@@ -481,7 +438,6 @@ async function sendDynamicEmail() {
     let sel = document.getElementById('assignSelect');
     let opt = sel.options[sel.selectedIndex];
     let cName = opt.getAttribute('data-cand');
-    
     showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
     loadSendEmailPage(); 
   } else {
@@ -493,12 +449,9 @@ async function sendDynamicEmail() {
 async function loadRefereeView() {
   const subs = await apiCall('getMySubmissions', { username: currentUser.name });
   if(!subs) return;
-
   let html = '<div class="card"><h2>My Submission History</h2><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-top:15px;">';
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Candidate Name</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>';
-  
   if(subs.length === 0) html += '<tr><td colspan="3" style="padding:20px; text-align:center; color:#777;">No forms assigned yet.</td></tr>';
-  
   subs.forEach(s => {
     html += '<tr style="border-bottom:1px solid #eee;">';
     html += '<td style="padding:10px; font-weight:bold;">' + s.candidate + '</td>';
@@ -535,20 +488,13 @@ async function loadRefForm(candName, refUser) {
   document.getElementById('activeFormContainer').innerHTML = html;
 }
 
-// 🔥 CRITICAL FIX: Replaced native confirm() with custom modal
 function confirmSubmission(e, assignId, candName) {
   e.preventDefault();
-  
-  // Gather form data
   const form = document.getElementById('refForm');
   const data = {};
-  for (let i = 0; i < form.elements.length; i++) {
-    if (form.elements[i].name) data[form.elements[i].name] = form.elements[i].value;
-  }
-  
+  for (let i = 0; i < form.elements.length; i++) if (form.elements[i].name) data[form.elements[i].name] = form.elements[i].value;
   pendingFormSubmission = { assignId: assignId, candName: candName, data: data };
   
-  // Show custom modal
   document.getElementById('modalTitle').innerText = "Confirm Submission";
   document.getElementById('modalMessage').innerHTML = "<p>Are you sure you want to submit this reference?</p><p><strong>Note:</strong> You cannot edit this form after submission.</p>";
   document.querySelector('.modal-footer').innerHTML = `
@@ -560,16 +506,13 @@ function confirmSubmission(e, assignId, candName) {
 
 async function submitFormData() {
   if (!pendingFormSubmission) return;
-  
   const { assignId, candName, data } = pendingFormSubmission;
   
-  // Change modal to loading
   document.getElementById('modalTitle').innerText = "Submitting...";
   document.getElementById('modalMessage').innerHTML = "<p>Please wait while we save your reference...</p>";
   document.querySelector('.modal-footer').innerHTML = ``;
   
   const res = await apiCall('submitForm', { formData: data, username: currentUser.name, assignmentId: assignId });
-  
   if(res.success) {
     showModal("Success", "Form submitted successfully! HR has been notified.");
     showModule('form', document.getElementById('nav-form'));
@@ -612,21 +555,17 @@ function getAdminHTML() {
   html += '<button onclick="createNewUser()" class="btn btn-primary">Create User</button></div>';
   
   setTimeout(loadUserManagementTable, 100);
-  
   return html;
 }
 
 async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
-
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
   html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>';
-  
   users.forEach(u => {
     let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
     let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
-    
     html += '<tr style="border-bottom:1px solid #eee;">';
     html += '<td style="padding:10px; font-weight:bold;">' + u.username + '</td>';
     html += '<td style="padding:10px;">' + u.role + '</td>';
@@ -638,7 +577,6 @@ async function loadUserManagementTable() {
     html += '<button onclick="deleteSystemUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-red);">Delete</button>';
     html += '</td></tr>';
   });
-  
   html += '</table></div>';
   document.getElementById('userManagementTable').innerHTML = html;
 }
@@ -663,18 +601,11 @@ async function deleteSystemUser(username) {
 }
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
-
-async function saveGlobalLogo() { 
-  const url = document.getElementById('globalLogoUrl').value;
-  await apiCall('saveLogo', { url: url });
-  showModal("Success", "Logo URL saved!");
-}
-
+async function saveGlobalLogo() { const url = document.getElementById('globalLogoUrl').value; await apiCall('saveLogo', { url: url }); showModal("Success", "Logo URL saved!"); }
 async function saveDefSettings() { 
   const reply = document.getElementById('defReplyTo').value;
   const bcc = document.getElementById('defBcc').value;
   const login = document.getElementById('defLoginUrl').value;
-  
   await apiCall('saveSettings', { replyTo: reply, bcc: bcc, loginUrl: login });
   defaultSettings = { reply: reply, bcc: bcc, loginUrl: login };
   showModal("Success", "Settings saved!");
@@ -691,7 +622,6 @@ function resizeAndUploadLogo() {
       const MAX_WIDTH = 400; const scale = MAX_WIDTH / img.width;
       canvas.width = MAX_WIDTH; canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
       apiCall('uploadLogo', { base64Data: canvas.toDataURL('image/png') }).then(url => {
         document.getElementById('headerLogo').src = url; 
         showModal("Success", "Logo uploaded successfully!");
@@ -707,7 +637,6 @@ async function createNewUser() {
     const checks = document.querySelectorAll('.perm-check:checked');
     perms = Array.from(checks).map(c => c.value).join(",");
   }
-  
   const res = await apiCall('createUser', {
     username: document.getElementById('newUser').value,
     password: document.getElementById('newPass').value,
@@ -716,7 +645,6 @@ async function createNewUser() {
     expiryDate: document.getElementById('newExpiry').value,
     permissions: perms
   });
-  
   showModal("System Message", res.message);
   if(res.success) { 
     document.getElementById('newUser').value = ''; 
