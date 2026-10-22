@@ -437,7 +437,8 @@ async function resetRefPassword(username) {
 // --- SEND EMAIL MODULE ---
 async function loadSendEmailPage() {
   const pending = await apiCall('getPendingAssignments');
-  let html = '<div class="card"><h3>Send Custom Reference Request</h3>';
+  let html = '<div class="card"><h3>Send Reference Request</h3>';
+  
   html += '<div class="input-group"><label>Select Referee Assignment to Email</label><select id="assignSelect" onchange="populateEmailFields()">';
   html += '<option value="">-- Select a Referee --</option>';
   if(pending) {
@@ -446,11 +447,16 @@ async function loadSendEmailPage() {
     });
   }
   html += '</select></div>';
-  html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail"></div>';
-  html += '<div class="input-group"><label>Reply-To Email</label><input type="email" id="replyTo" value="' + defaultSettings.reply + '"></div>';
-  html += '<div class="input-group"><label>BCC Email</label><input type="email" id="bccEmail" value="' + defaultSettings.bcc + '"></div>';
-  html += '<div class="input-group"><label>Subject</label><input type="text" id="emailSubject"></div>';
-  html += '<div class="input-group"><label>Email Body (HTML allowed)</label><textarea id="emailBody" rows="12"></textarea></div>';
+
+  // Hidden fields to store data
+  html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail" readonly></div>';
+  
+  html += '<div id="emailPreview" style="display:none; background:white; padding:20px; border:1px solid #ddd; border-radius:8px; margin-bottom:20px;">';
+  html += '<h4 style="color:var(--isd-teal); margin-top:0;">Email Preview (Auto-Generated)</h4>';
+  html += '<p><strong>Subject:</strong> <span id="previewSubject"></span></p>';
+  html += '<div id="previewBody" style="font-family:Arial; font-size:14px; line-height:1.6; color:#333; border-top:1px solid #eee; padding-top:15px;"></div>';
+  html += '</div>';
+  
   html += '<button onclick="sendDynamicEmail()" class="btn btn-primary">Send Email to Referee</button></div>';
   document.getElementById('contentArea').innerHTML = html;
 }
@@ -466,51 +472,69 @@ async function populateEmailFields() {
   let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
   
+  // Fetch a fresh password
   const passRes = await apiCall('getRefereeCredentials', { username: rUser });
   let tempPass = passRes || "Please use your existing password";
 
   document.getElementById('toEmail').value = rEmail;
-  document.getElementById('emailSubject').value = "ISD Reference Request: " + cName;
   
-  let body = "Dear <b>" + rName + "</b>,<br><br>";
-  body += "We hope this message finds you well. International School Dhaka is currently reviewing candidates and we are reaching out to you as a professional reference for <b>" + cName + "</b>.<br><br>";
-  body += "<div style='background-color:#f4f7f6; padding:20px; border-left:4px solid #FF5C35; border-radius:4px; margin:20px 0;'>";
-  body += "<p style='margin:5px 0;'><strong>Your Login Username:</strong> " + rUser + "</p>";
-  body += "<p style='margin:5px 0;'><strong>Your Password:</strong> " + tempPass + "</p>";
-  body += "</div>";
-  body += "Please click the button below to access the secure portal and complete the reference form:<br><br>";
-  body += "<div style='text-align:center; margin: 30px 0;'><a href='" + formLink + "' style='background-color:#38D430; color:white; padding:14px 30px; text-decoration:none; border-radius:4px; font-weight:bold; font-family:Arial; display:inline-block;'>Login & Complete Form</a></div>";
-  body += "Thank you for your time and cooperation.<br><br>";
-  body += "Warm regards,<br><b>ISD HR Team</b><br>International School Dhaka";
+  // Build the Preview
+  document.getElementById('emailPreview').style.display = 'block';
+  document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
-  document.getElementById('emailBody').value = body;
+  let previewHtml = "<p>Dear <b>" + rName + "</b>,</p>";
+  previewHtml += "<p>We hope this message finds you well. International School Dhaka is currently reviewing candidates and we are reaching out to you as a professional reference for <b>" + cName + "</b>.</p>";
+  previewHtml += "<p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>";
+  previewHtml += "<div style='background-color:#f4f7f6; padding:15px; border-left:4px solid #FF5C35; border-radius:4px; margin:20px 0;'>";
+  previewHtml += "<p style='margin:5px 0;'><strong>Your Login Username:</strong> " + rUser + "</p>";
+  previewHtml += "<p style='margin:5px 0;'><strong>Your Password:</strong> " + tempPass + "</p>";
+  previewHtml += "</div>";
+  previewHtml += "<div style='text-align:center; margin: 20px 0;'><a href='" + formLink + "' style='background-color:#38D430; color:white; padding:12px 25px; text-decoration:none; border-radius:4px; font-weight:bold; display:inline-block;'>Login & Complete Form</a></div>";
+  previewHtml += "<p>Thank you for your time and cooperation.</p>";
+  previewHtml += "<p>Warm regards,<br><b>ISD HR Team</b></p>";
+  
+  document.getElementById('previewBody').innerHTML = previewHtml;
 }
 
 async function sendDynamicEmail() {
-  const settings = { 
-    to: document.getElementById('toEmail').value, 
-    replyTo: document.getElementById('replyTo').value, 
-    bcc: document.getElementById('bccEmail').value, 
-    subject: document.getElementById('emailSubject').value, 
-    body: document.getElementById('emailBody').value 
-  };
-  
   let sel = document.getElementById('assignSelect');
   let opt = sel.options[sel.selectedIndex];
-  let assignId = opt.value;
-  let cName = opt.getAttribute('data-cand');
   
-  if(!assignId) return showModal("Error", "Please select a referee first.");
+  if(!opt.value) return showModal("Error", "Please select a referee first.");
+  
+  let assignId = opt.value;
+  let rName = opt.getAttribute('data-name');
+  let cName = opt.getAttribute('data-cand');
+  let rEmail = opt.getAttribute('data-email');
+  let rUser = opt.getAttribute('data-user');
+  let formLink = defaultSettings.loginUrl || window.location.href;
+  
+  // Get the password again to send it to the backend
+  const passRes = await apiCall('getRefereeCredentials', { username: rUser });
+  let tempPass = passRes || "Please use your existing password";
 
-  const res = await apiCall('sendEmail', { settings: settings });
+  // Show loading modal
+  showModal("Sending...", "<p>Please wait while we generate and send the email...</p>");
+
+  // Send the data to the backend (not the HTML!)
+  const res = await apiCall('sendEmail', { 
+    to: rEmail,
+    refereeName: rName,
+    candidateName: cName,
+    loginId: rUser,
+    password: tempPass,
+    formLink: formLink
+  });
+  
   if(res.success) {
     await apiCall('markAssignmentAsSent', { assignmentId: assignId });
-    showModal("Email Sent Successfully", "The login information and form link have been successfully sent to the referee for <b>" + cName + "</b>.");
+    showModal("Email Sent Successfully", "The beautiful email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
     loadSendEmailPage(); 
   } else {
     showModal("Error", res.message);
   }
 }
+
 
 // --- REFEREE VIEW ---
 async function loadRefereeView() {
