@@ -207,7 +207,7 @@ async function handleLogin(e) {
     currentUser = res;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'flex';
-    document.getElementById('userNameDisplay').innerText = res.name + " (" + res.role + ")";
+    document.getElementById('userNameDisplay').innerText = res.staffName + " (" + res.role + ")";
     
     let perms = res.permissions ? res.permissions.split(",") : [];
     if (res.role === 'Admin') perms = ["Dashboard","SendEmail","ManageReferees","Admin"];
@@ -623,8 +623,9 @@ function getAdminHTML() {
   html += '<div id="userManagementTable">Loading users...</div></div>';
 
   html += '<div class="card"><h3>Create New User & Permissions</h3>';
+  html += '<div class="input-group"><label>Staff Name (Full Name)</label><input type="text" id="newStaffName" placeholder="e.g. John Doe"></div>'; // 🔥 NEW FIELD
   html += '<div class="input-group"><label>Role</label><select id="newRole" onchange="togglePerms()"><option value="HR">HR</option><option value="Referee">Referee</option><option value="Admin">Admin</option></select></div>';
-  html += '<div class="input-group"><label>Username / Referee Name</label><input type="text" id="newUser"></div>';
+  html += '<div class="input-group"><label>Username (System Login)</label><input type="text" id="newUser"></div>';
   html += '<div class="input-group"><label>Password</label><input type="password" id="newPass"></div>';
   html += '<div class="input-group"><label>Email</label><input type="email" id="newEmail"></div>';
   html += '<div class="input-group"><label>Access Expiry Date (Optional)</label><input type="date" id="newExpiry"></div>';
@@ -648,12 +649,13 @@ async function loadUserManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
-  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>';
+  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Staff Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Role</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; // 🔥 Added Staff Name Column
   users.forEach(u => {
     let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
     let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
     html += '<tr style="border-bottom:1px solid #eee;">';
-    html += '<td style="padding:10px; font-weight:bold;">' + u.username + '</td>';
+    html += '<td style="padding:10px; font-weight:bold;">' + (u.staffName || 'N/A') + '</td>'; // 🔥 Display Staff Name
+    html += '<td style="padding:10px;">' + u.username + '</td>';
     html += '<td style="padding:10px;">' + u.role + '</td>';
     html += '<td style="padding:10px;">' + u.email + '</td>';
     html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + u.status + '</td>';
@@ -718,21 +720,29 @@ function resizeAndUploadLogo() {
 
 async function createNewUser() {
   const role = document.getElementById('newRole').value;
+  const staffName = document.getElementById('newStaffName').value;
+  
+  if(!staffName) return showModal("Error", "Please enter the Staff Name.");
+
   let perms = "";
   if(role !== 'Referee') {
     const checks = document.querySelectorAll('.perm-check:checked');
     perms = Array.from(checks).map(c => c.value).join(",");
   }
+  
   const res = await apiCall('createUser', {
     username: document.getElementById('newUser').value,
     password: document.getElementById('newPass').value,
     role: role,
     email: document.getElementById('newEmail').value,
     expiryDate: document.getElementById('newExpiry').value,
-    permissions: perms
+    permissions: perms,
+    staffName: staffName // 🔥 Send the new field
   });
+  
   showModal("System Message", res.message);
   if(res.success) { 
+    document.getElementById('newStaffName').value = ''; 
     document.getElementById('newUser').value = ''; 
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
