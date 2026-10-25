@@ -34,11 +34,11 @@
       <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="input-group"><label>Username</label><input type="text" id="username" required></div>
         <div class="input-group">
-            <label>Password</label>
-            <div class="password-wrapper">
-              <input type="password" id="password" required>
-              <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
-            </div>
+          <label>Password</label>
+          <div class="password-wrapper" style="position: relative;">
+            <input type="password" id="password" required style="padding-right: 40px;">
+            <span class="toggle-password" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;">👁️</span>
+          </div>
         </div>
         
         <!-- Custom Math Captcha -->
