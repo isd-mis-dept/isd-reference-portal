@@ -5,6 +5,7 @@ let defaultSettings = { reply: "", bcc: "", loginUrl: "" };
 let dynamicCandidates = []; 
 let currentCaptchaAnswer = 0;
 let pendingFormSubmission = null;
+
 // --- UI HELPERS ---
 function showModal(title, message) {
   document.getElementById('modalTitle').innerText = title;
@@ -22,50 +23,21 @@ function closeModal() {
 
 function showSystemError(err) { showModal("System Alert", err); }
 
-// 🔥 NEW: Modal Table Display Logic
-async function showDashboardTable(type) {
-  showModal("Loading...", "<p>Fetching records...</p>");
+// 🔥 PASSWORD VISIBILITY TOGGLE FUNCTION
+function togglePasswordVisibility() {
+  const passwordField = document.getElementById('password');
+  const toggleIcon = document.querySelector('.toggle-password');
   
-  let title = "";
-  let html = "";
-  let records = [];
-
-  if (type === 'completed') {
-    title = "Completed References";
-    records = await apiCall('getAllSubmittedRecords');
-    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
-    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Date</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Recommendation</th></tr>';
-    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No records found.</td></tr>';
-    else {
-      records.forEach(r => {
-        let d = new Date(r.date).toLocaleDateString();
-        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td></tr>';
-      });
-    }
-    html += '</table></div>';
-  } else if (type === 'pending') {
-    title = "Pending Requests";
-    records = await apiCall('getAllPendingRecords');
-    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
-    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th></tr>';
-    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No pending requests.</td></tr>';
-    else {
-      records.forEach(r => {
-        let statusColor = r.status === 'Sent' ? '#38D430' : '#FFDA00';
-        let statusText = r.status === 'Sent' ? 'Email Sent' : 'Pending Email';
-        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.officialName + '</td><td style="padding:10px;">' + r.email + '</td><td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + statusText + '</td></tr>';
-      });
-    }
-    html += '</table></div>';
+  if (passwordField.type === 'password') {
+    passwordField.type = 'text';
+    toggleIcon.innerText = '🙈'; // Change icon to hide
+  } else {
+    passwordField.type = 'password';
+    toggleIcon.innerText = '👁️'; // Change icon to show
   }
-
-  document.getElementById('modalTitle').innerText = title;
-  document.getElementById('modalMessage').innerHTML = html;
-  document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Close</button>`;
-  document.querySelector('.modal-box').style.maxWidth = '800px';
-  document.getElementById('customModal').style.display = 'flex';
 }
 
+// 🔥 UPDATED: PDF Modal now formats the new long list of fields nicely
 async function showPDFModal(assignmentId, candidateName) {
   showModal("Loading...", "<p>Fetching reference data...</p>");
   const res = await apiCall('getSubmissionData', { assignmentId: assignmentId });
@@ -76,10 +48,51 @@ async function showPDFModal(assignmentId, candidateName) {
   
   const data = res.data;
   let tableRows = "";
+  
+  const labels = {
+    "supervisorPosition": "Supervisor's Position",
+    "workDuration": "Worked Together For",
+    "schoolName": "School/Organization Name",
+    "childSafetyConcerns": "Concerns About Behaviour Around Children?",
+    "greatestStrengths": "Greatest Strengths",
+    "areasForDevelopment": "Areas for Development",
+    "reactionToDislike": "Reaction to Unliked Decision (1-10)",
+    "reactionToCriticism": "Reaction to Constructive Criticism (1-10)",
+    "moraleInfluence": "Influence on School Morale (1-10)",
+    "retainCandidate": "Wish to Retain/Re-employ?",
+    "parentReaction": "Parent Reaction",
+    "effectiveness": "Effectiveness in Classroom",
+    "subjectKnowledge": "Subject Knowledge",
+    "relationshipStudents": "Relationship with Students",
+    "relationshipParents": "Relationship with Parents",
+    "relationshipPeers": "Relationship with Peers",
+    "relationshipLeadership": "Relationship with Leadership",
+    "genuineInterest": "Genuine Interest in Children",
+    "communication": "Ability to Communicate",
+    "creativity": "Creativity",
+    "encouragement": "Encouragement of High Standards",
+    "tolerance": "Tolerance of Frustration",
+    "organization": "Sense of Organization",
+    "openCommunication": "Communicates Openly",
+    "coCurricular": "Contributes to Co-curricular",
+    "workEthic": "Work Ethic",
+    "energy": "Energy and Stamina",
+    "attendance": "Attendance/Punctuality",
+    "enthusiasm": "Enthusiasm",
+    "inspire": "Ability to Inspire Students",
+    "humour": "Sense of Humour",
+    "adaptability": "Adaptability/Flexibility",
+    "teamPlayer": "Works as a Team Player",
+    "overallRating": "Overall Rating",
+    "furtherComments": "Further Comments",
+    "phoneCallWilling": "Willing to do 5-min Call?"
+  };
+
   for (let key in data) {
     if (key !== 'candidateName' && key !== 'refereeName') {
-      let formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); });
-      tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">${formattedKey}</td><td style="padding:10px; border:1px solid #ddd;">${data[key] || 'N/A'}</td></tr>`;
+      let displayLabel = labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      let value = data[key] || 'N/A';
+      tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold; font-size:13px;">${displayLabel}</td><td style="padding:10px; border:1px solid #ddd; font-size:13px;">${value}</td></tr>`;
     }
   }
 
@@ -90,10 +103,10 @@ async function showPDFModal(assignmentId, candidateName) {
         <img src="${document.getElementById('headerLogo').src}" style="max-height:70px;">
         <h2 style="color:#004C45; margin:0; text-align:right;">International School Dhaka</h2>
       </div>
-      <h3 style="text-align:center; color:#FF5C35; margin-bottom:20px;">Teacher Reference Report</h3>
+      <h3 style="text-align:center; color:#FF5C35; margin-bottom:20px;">Comprehensive Reference Report</h3>
       <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
-        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">Referee Name</td><td style="padding:10px; border:1px solid #ddd;">${data.refereeName}</td></tr>
-        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:35%; font-weight:bold;">Candidate Name</td><td style="padding:10px; border:1px solid #ddd;">${data.candidateName}</td></tr>
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Referee Name</td><td style="padding:10px; border:1px solid #ddd;">${data.refereeName}</td></tr>
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Candidate Name</td><td style="padding:10px; border:1px solid #ddd;">${data.candidateName}</td></tr>
         ${tableRows}
       </table>
       <p style="font-size:12px; color:#777; text-align:center; margin-top:40px;">Generated securely on ${new Date().toLocaleString()}</p>
@@ -125,10 +138,10 @@ function printPDF() {
       <head>
         <title>Reference Report</title>
         <style>
-          @page { size: A4; margin: 20mm; }
-          body { font-family: Arial, sans-serif; color: #333; }
+          @page { size: A4; margin: 15mm; }
+          body { font-family: Arial, sans-serif; color: #333; font-size: 12px; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+          th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
         </style>
       </head>
       <body>${printContents}</body>
@@ -140,6 +153,49 @@ function printPDF() {
   printFrame.contentWindow.print();
   
   setTimeout(() => document.body.removeChild(printFrame), 1000);
+}
+
+async function showDashboardTable(type) {
+  showModal("Loading...", "<p>Fetching records...</p>");
+  
+  let title = "";
+  let html = "";
+  let records = [];
+
+  if (type === 'completed') {
+    title = "Completed References";
+    records = await apiCall('getAllSubmittedRecords');
+    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Date</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Overall Rating</th></tr>';
+    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No records found.</td></tr>';
+    else {
+      records.forEach(r => {
+        let d = new Date(r.date).toLocaleDateString();
+        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.overallRating + '</td></tr>';
+      });
+    }
+    html += '</table></div>';
+  } else if (type === 'pending') {
+    title = "Pending Requests";
+    records = await apiCall('getAllPendingRecords');
+    html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+    html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Email</th><th style="padding:10px;">Status</th></tr>';
+    if(!records || records.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No pending requests.</td></tr>';
+    else {
+      records.forEach(r => {
+        let statusColor = r.status === 'Sent' ? '#38D430' : '#FFDA00';
+        let statusText = r.status === 'Sent' ? 'Email Sent' : 'Pending Email';
+        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.officialName + '</td><td style="padding:10px;">' + r.email + '</td><td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + statusText + '</td></tr>';
+      });
+    }
+    html += '</table></div>';
+  }
+
+  document.getElementById('modalTitle').innerText = title;
+  document.getElementById('modalMessage').innerHTML = html;
+  document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Close</button>`;
+  document.querySelector('.modal-box').style.maxWidth = '800px';
+  document.getElementById('customModal').style.display = 'flex';
 }
 
 function generateCaptcha() {
@@ -188,7 +244,6 @@ function forgotPassword() {
       <input type="email" id="forgotEmailInput" placeholder="yourname@isdbd.org" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
     </div>
   `;
-  
   document.querySelector('.modal-footer').innerHTML = `
     <button class="btn btn-primary" onclick="submitForgotPassword()" style="width:auto; margin-right:10px;">Reset Password</button>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
@@ -199,16 +254,10 @@ function forgotPassword() {
 async function submitForgotPassword() {
   const email = document.getElementById('forgotEmailInput').value.trim();
   if(!email) return showModal("Error", "Please enter your email address.");
-  
-  showModal("Processing...", "<p>Please wait while we verify your email and generate a new password...</p>");
-  
+  showModal("Processing...", "<p>Please wait while we verify your email...</p>");
   const res = await apiCall('forgotPasswordRequest', { email: email });
-  
-  if(res.success) {
-    showModal("Success", "<p>A new password has been sent to your email address.</p><p><em>Note: A copy has also been sent to the Admin.</em></p>");
-  } else {
-    showModal("Error", res.message);
-  }
+  if(res.success) showModal("Success", "<p>A new password has been sent to your email address.</p><p><em>Note: A copy has also been sent to the Admin.</em></p>");
+  else showModal("Error", res.message);
 }
 
 async function handleLogin(e) {
@@ -292,42 +341,54 @@ async function loadDashboard() {
     let totalSubmissions = subs.length;
     let pending = 0;
     
-    // 🔥 FIX: Count both Pending and Sent
     for (let i = 0; i < assign.length; i++) {
       if (assign[i][3] === "Pending" || assign[i][3] === "Sent") pending++;
     }
 
     let recent = [];
-    let analytics = { classroom: {Excellent:0, Good:0, Satisfactory:0}, recommendation: {Highly:0, Recommended:0, Not:0} };
+    let analytics = { retain: {great:0, enthusiastic:0, neutral:0, hesitant:0, no:0} };
     let count = 0;
+    
     for (let i = subs.length - 1; i >= 0; i--) {
       try {
         let data = JSON.parse(subs[i][2]);
-        if(data.classroom) analytics.classroom[data.classroom] = (analytics.classroom[data.classroom] || 0) + 1;
-        if(data.recommendation) {
-          if(data.recommendation.includes("Highly")) analytics.recommendation.Highly++;
-          else if(data.recommendation.includes("Not")) analytics.recommendation.Not++;
-          else analytics.recommendation.Recommended++;
+        
+        if(data.retainCandidate) {
+          if(data.retainCandidate.includes("great")) analytics.retain.great++;
+          else if(data.retainCandidate.includes("enthusiasm")) analytics.retain.enthusiastic++;
+          else if(data.retainCandidate.includes("neutral")) analytics.retain.neutral++;
+          else if(data.retainCandidate.includes("hesitation")) analytics.retain.hesitant++;
+          else if(data.retainCandidate.includes("not")) analytics.retain.no++;
         }
+        
         if (count < 5) {
-          recent.push({ date: subs[i][0], candidate: data.candidateName || "Unknown", referee: data.refereeName || "Unknown", recommendation: data.recommendation || "N/A" });
+          recent.push({ 
+            date: subs[i][0], 
+            candidate: data.candidateName || "Unknown", 
+            referee: data.refereeName || "Unknown", 
+            overall: data.overallRating || "N/A" 
+          });
           count++;
         }
       } catch(e) { }
     }
+    
     let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">System Overview</h2>';
     
-    // 🔥 FIX: Added onclick to the cards
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px;">';
     html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
     html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
     html += '</div>';
     
-    html += '<div class="card"><h3>Reference Insights</h3><p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
-    html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">';
-    html += '<div><h4 style="color:var(--isd-teal);">Classroom Management</h4><p>Excellent: <b>' + analytics.classroom.Excellent + '</b></p><p>Good: <b>' + analytics.classroom.Good + '</b></p><p>Satisfactory: <b>' + analytics.classroom.Satisfactory + '</b></p></div>';
-    html += '<div><h4 style="color:var(--isd-teal);">Overall Recommendation</h4><p>Highly Recommended: <b>' + analytics.recommendation.Highly + '</b></p><p>Recommended: <b>' + analytics.recommendation.Recommended + '</b></p><p>Not Recommended: <b>' + analytics.recommendation.Not + '</b></p></div>';
-    html += '</div></div>';
+    html += '<div class="card"><h3>Retention Insights</h3><p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
+    html += '<div style="display:grid; grid-template-columns: 1fr; gap:10px;">';
+    html += '<div><h4 style="color:var(--isd-teal);">Would you retain this candidate?</h4>';
+    html += '<p>With Great Enthusiasm: <b>' + analytics.retain.great + '</b></p>';
+    html += '<p>With Enthusiasm: <b>' + analytics.retain.enthusiastic + '</b></p>';
+    html += '<p>With Neutrality: <b>' + analytics.retain.neutral + '</b></p>';
+    html += '<p>With Slight Hesitation: <b>' + analytics.retain.hesitant + '</b></p>';
+    html += '<p>Will Not Retain: <b>' + analytics.retain.no + '</b></p>';
+    html += '</div></div></div>';
     
     html += '<div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
@@ -335,11 +396,11 @@ async function loadDashboard() {
     html += '</div>';
     
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
-    html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Recommendation</th></tr>';
+    html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Overall Rating</th></tr>';
     if(recent.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
     recent.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
-      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.recommendation + '</td></tr>';
+      html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.overall + '</td></tr>';
     });
     html += '</table></div></div><div id="auditArea"></div>';
     document.getElementById('contentArea').innerHTML = html;
@@ -408,7 +469,6 @@ async function loadManageRefereesPage() {
     tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + p.username + '</td><td style="padding:10px;">' + p.officialName + '</td><td style="padding:10px; font-weight:bold;">' + p.candidate + '</td><td style="padding:10px; color:#FFDA00; font-weight:bold;">Pending</td><td style="padding:10px;"><button onclick="resetRefPassword(\'' + p.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:12px; background-color:var(--isd-teal);">Reset Password</button></td></tr>';
   });
   
-  // 🔥 NEW: Display Sent items with a distinct color
   sentItems.forEach(s => {
     tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + s.username + '</td><td style="padding:10px;">' + s.officialName + '</td><td style="padding:10px; font-weight:bold;">' + s.candidate + '</td><td style="padding:10px; color:#004C45; font-weight:bold;">Email Sent</td><td style="padding:10px; color:#777; font-size:12px;">Awaiting Referee</td></tr>';
   });
@@ -465,7 +525,6 @@ async function resetRefPassword(username) {
 async function loadSendEmailPage() {
   const pending = await apiCall('getPendingAssignments');
   let html = '<div class="card"><h3>Send Reference Request</h3>';
-  
   html += '<div class="input-group"><label>Select Referee Assignment to Email</label><select id="assignSelect" onchange="populateEmailFields()">';
   html += '<option value="">-- Select a Referee --</option>';
   if(pending) {
@@ -474,16 +533,12 @@ async function loadSendEmailPage() {
     });
   }
   html += '</select></div>';
-
-  // Hidden fields to store data
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail" readonly></div>';
-  
   html += '<div id="emailPreview" style="display:none; background:white; padding:20px; border:1px solid #ddd; border-radius:8px; margin-bottom:20px;">';
   html += '<h4 style="color:var(--isd-teal); margin-top:0;">Email Preview (Auto-Generated)</h4>';
   html += '<p><strong>Subject:</strong> <span id="previewSubject"></span></p>';
   html += '<div id="previewBody" style="font-family:Arial; font-size:14px; line-height:1.6; color:#333; border-top:1px solid #eee; padding-top:15px;"></div>';
   html += '</div>';
-  
   html += '<button onclick="sendDynamicEmail()" class="btn btn-primary">Send Email to Referee</button></div>';
   document.getElementById('contentArea').innerHTML = html;
 }
@@ -497,15 +552,13 @@ async function populateEmailFields() {
   let cName = opt.getAttribute('data-cand');
   let rEmail = opt.getAttribute('data-email');
   let rUser = opt.getAttribute('data-user');
-  let assignId = opt.value; // We need the specific assignment ID
+  let assignId = opt.value;
   let formLink = defaultSettings.loginUrl || window.location.href;
   
-  // Fetch the correct password for THIS specific assignment
   const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
   document.getElementById('toEmail').value = rEmail;
-  
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
@@ -519,14 +572,12 @@ async function populateEmailFields() {
   previewHtml += "<div style='text-align:center; margin: 20px 0;'><a href='" + formLink + "' style='background-color:#38D430; color:white; padding:12px 25px; text-decoration:none; border-radius:4px; font-weight:bold; display:inline-block;'>Login & Complete Form</a></div>";
   previewHtml += "<p>Thank you for your time and cooperation.</p>";
   previewHtml += "<p>Warm regards,<br><b>ISD HR Team</b></p>";
-  
   document.getElementById('previewBody').innerHTML = previewHtml;
 }
 
 async function sendDynamicEmail() {
   let sel = document.getElementById('assignSelect');
   let opt = sel.options[sel.selectedIndex];
-  
   if(!opt.value) return showModal("Error", "Please select a referee first.");
   
   let assignId = opt.value;
@@ -559,7 +610,6 @@ async function sendDynamicEmail() {
   }
 }
 
-
 // --- REFEREE VIEW ---
 async function loadRefereeView() {
   const subs = await apiCall('getMySubmissions', { username: currentUser.name });
@@ -583,23 +633,80 @@ async function loadRefereeView() {
   document.getElementById('contentArea').innerHTML = html;
 }
 
+// 🔥 UPDATED: The Comprehensive Reference Form
 async function loadRefForm(candName, refUser) {
   const cands = await apiCall('getRefereeCandidates', { username: refUser });
   let assignId = "";
   if(cands) cands.forEach(c => { if(c.candidateName === candName) assignId = c.id; });
   if(!assignId) return showModal("Error", "Assignment not found or already submitted.");
   
-  let html = '<div class="card" style="max-width: 800px; margin: 20px auto;"><h3>Reference Form: ' + candName + '</h3>';
+  const scaleLabel = `<small style="display:block; color:#777; font-size:11px; margin-bottom:5px;">5 = Outstanding, 4 = Above Average, 3 = Average, 2 = Below Average, 1 = Unsatisfactory, 0 = Not applicable</small>`;
+  
+  let html = '<div class="card" style="max-width: 800px; margin: 20px auto;"><h3 style="color:var(--isd-teal); border-bottom:2px solid #eee; padding-bottom:10px;">Reference Form: ' + candName + '</h3>';
   html += '<form id="refForm" onsubmit="confirmSubmission(event, \'' + assignId + '\', \'' + candName + '\')">';
   html += '<input type="hidden" name="candidateName" value="' + candName + '">';
   html += '<input type="hidden" name="refereeName" value="' + refUser + '">';
-  html += '<div class="input-group"><label>How long have you known the candidate?</label><input type="text" name="knownDuration" required></div>';
-  html += '<div class="input-group"><label>What subject/grade did you teach them?</label><input type="text" name="subject" required></div>';
-  html += '<div class="input-group"><label>Professional Strengths</label><textarea name="strengths" rows="3" required></textarea></div>';
-  html += '<div class="input-group"><label>Areas for Improvement</label><textarea name="improvements" rows="3"></textarea></div>';
-  html += '<div class="input-group"><label>Classroom Management</label><select name="classroom" required><option>Excellent</option><option>Good</option><option>Satisfactory</option></select></div>';
-  html += '<div class="input-group"><label>Overall Recommendation</label><select name="recommendation" required><option>Highly Recommended</option><option>Recommended</option><option>Not Recommended</option></select></div>';
-  html += '<button type="submit" class="btn btn-primary">Submit & Lock Form</button></form></div>';
+
+  // Section 1
+  html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 1: Background Information</h4>';
+  html += '<div class="input-group"><label>During your time supervising this candidate, what was YOUR position and/or title? *</label><input type="text" name="supervisorPosition" required></div>';
+  html += '<div class="input-group"><label>How long did you work together with this candidate? *</label><input type="text" name="workDuration" required></div>';
+  html += '<div class="input-group"><label>What is the name of the school/organization where you supervised this candidate? *</label><input type="text" name="schoolName" required></div>';
+  html += '<div class="input-group"><label>Do you have any concerns about this candidate\'s behaviour around children, or working unattended with children? *</label><select name="childSafetyConcerns" required><option value="No">No</option><option value="Yes">Yes</option></select></div>';
+
+  // Section 2
+  html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 2: General Assessment</h4>';
+  html += '<div class="input-group"><label>What are this candidate\'s greatest strengths? *</label><textarea name="greatestStrengths" rows="3" required></textarea></div>';
+  html += '<div class="input-group"><label>In what areas would you like to see the candidate develop? *</label><textarea name="areasForDevelopment" rows="3" required></textarea></div>';
+  
+  const scaleOptions = '<option value="10">10</option><option value="9">9</option><option value="8">8</option><option value="7">7</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>';
+  html += '<div class="input-group"><label>How would this person react to a decision he or she did not like? (1 = Negative, 10 = Positive) *</label><select name="reactionToDislike" required>' + scaleOptions + '</select></div>';
+  html += '<div class="input-group"><label>How would this candidate react to constructive criticism? (1 = Negative, 10 = Positive) *</label><select name="reactionToCriticism" required>' + scaleOptions + '</select></div>';
+  html += '<div class="input-group"><label>What influence does this person have on school morale and "climate"? (1 = Negative, 10 = Positive) *</label><select name="moraleInfluence" required>' + scaleOptions + '</select></div>';
+  
+  html += '<div class="input-group"><label>Would you wish your school to retain or re-employ this candidate? *</label><select name="retainCandidate" required><option value="with great enthusiasm">With Great Enthusiasm</option><option value="with enthusiasm">With Enthusiasm</option><option value="with neutrality">With Neutrality</option><option value="with slight hesitation">With Slight Hesitation</option><option value="will not retain or re-employ">Will Not Retain or Re-employ</option></select></div>';
+  html += '<div class="input-group"><label>How do you believe most parents would react to the news that their child was scheduled to have this teacher? *</label><select name="parentReaction" required><option value="with great enthusiasm">With Great Enthusiasm</option><option value="with enthusiasm">With Enthusiasm</option><option value="with neutrality">With Neutrality</option><option value="with slight hesitation">With Slight Hesitation</option></select></div>';
+
+  // Section 3
+  const ratingOptions = '<option value="Outstanding">Outstanding</option><option value="Above average">Above Average</option><option value="Average">Average</option><option value="Below average">Below Average</option><option value="N/A Not applicable">N/A Not applicable</option>';
+  html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 3: Performance Ratings</h4>';
+  
+  const ratingFields = [
+    { name: "effectiveness", label: "Effectiveness in classroom" },
+    { name: "subjectKnowledge", label: "Subject knowledge" },
+    { name: "relationshipStudents", label: "Relationship with students" },
+    { name: "relationshipParents", label: "Relationship with parents" },
+    { name: "relationshipPeers", label: "Relationship with peers" },
+    { name: "relationshipLeadership", label: "Relationship with leadership team" },
+    { name: "genuineInterest", label: "Genuine interest in children" },
+    { name: "communication", label: "Ability to communicate effectively" },
+    { name: "creativity", label: "Creativity" },
+    { name: "encouragement", label: "Encouragement of high standards" },
+    { name: "tolerance", label: "Tolerance of frustration" },
+    { name: "organization", label: "Sense of organization and order" },
+    { name: "openCommunication", label: "Communicates openly with others even when not in agreement" },
+    { name: "coCurricular", label: "Contributes to co-curricular school activities/sports" },
+    { name: "workEthic", label: "Work Ethic" },
+    { name: "energy", label: "Energy and stamina" },
+    { name: "attendance", label: "School attendance/punctuality" },
+    { name: "enthusiasm", label: "Enthusiasm" },
+    { name: "inspire", label: "Ability to inspire students" },
+    { name: "humour", label: "Sense of humour" },
+    { name: "adaptability", label: "Adaptability/flexibility" },
+    { name: "teamPlayer", label: "Works as a team player" },
+    { name: "overallRating", label: "Overall rating of candidate" }
+  ];
+
+  ratingFields.forEach(f => {
+    html += `<div class="input-group"><label>${f.label} *</label>${scaleLabel}<select name="${f.name}" required>${ratingOptions}</select></div>`;
+  });
+
+  // Section 4
+  html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 4: Final Comments</h4>';
+  html += '<div class="input-group"><label>Any further comments about this candidate: *</label><textarea name="furtherComments" rows="3" required></textarea></div>';
+  html += '<div class="input-group"><label>Lastly, if necessary, would you be willing to participate in a 5 minute telephone call as part of our safer recruitment process? *</label><select name="phoneCallWilling" required><option value="Yes">Yes</option><option value="No">No</option></select></div>';
+
+  html += '<button type="submit" class="btn btn-primary" style="margin-top:20px;">Submit & Lock Form</button></form></div>';
   document.getElementById('activeFormContainer').innerHTML = html;
 }
 
@@ -650,7 +757,7 @@ function getAdminHTML() {
   html += '<div id="userManagementTable">Loading users...</div></div>';
 
   html += '<div class="card"><h3>Create New User & Permissions</h3>';
-  html += '<div class="input-group"><label>Staff Name (Full Name)</label><input type="text" id="newStaffName" placeholder="e.g. John Doe"></div>'; // 🔥 NEW FIELD
+  html += '<div class="input-group"><label>Staff Name (Full Name)</label><input type="text" id="newStaffName" placeholder="e.g. John Doe"></div>';
   html += '<div class="input-group"><label>Role</label><select id="newRole" onchange="togglePerms()"><option value="HR">HR</option><option value="Referee">Referee</option><option value="Admin">Admin</option></select></div>';
   html += '<div class="input-group"><label>Username (System Login)</label><input type="text" id="newUser"></div>';
   html += '<div class="input-group"><label>Password</label><input type="password" id="newPass"></div>';
@@ -706,7 +813,6 @@ async function loadUserManagementTable() {
     html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + u.status + '</td>';
     
     html += '<td style="padding:10px; display:flex; gap:5px; flex-wrap:wrap;">';
-    // 🔥 NEW: Edit Button
     html += '<button onclick="editUserDetails(\'' + u.username + '\', \'' + (u.staffName || '') + '\', \'' + u.role + '\', \'' + u.expiry + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Edit</button>';
     html += '<button onclick="toggleUser(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-teal);">' + toggleText + '</button>';
     html += '<button onclick="adminResetPass(\'' + u.username + '\')" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333;">Reset Pass</button>';
@@ -717,16 +823,9 @@ async function loadUserManagementTable() {
   document.getElementById('userManagementTable').innerHTML = html;
 }
 
-async function toggleUser(username) {
-  const res = await apiCall('toggleUserStatus', { username: username });
-  showModal("Status Updated", res.message);
-  loadUserManagementTable();
-}
 function editUserDetails(username, currentName, currentRole, currentExpiry) {
-  // Handle the "No Expiry" text so the date picker works
   let dateValue = "";
   if (currentExpiry && currentExpiry !== "No Expiry" && !currentExpiry.includes("(Expired)")) {
-    // Convert "Oct 22, 2026" to "2026-10-22" for the date input
     try {
       let d = new Date(currentExpiry);
       dateValue = d.toISOString().split('T')[0];
@@ -736,32 +835,14 @@ function editUserDetails(username, currentName, currentRole, currentExpiry) {
   document.getElementById('modalTitle').innerText = "Edit User Details";
   document.getElementById('modalMessage').innerHTML = `
     <p>Editing account for: <b>${username}</b></p>
-    
-    <div class="input-group" style="margin-top:15px;">
-      <label>Staff Name</label>
-      <input type="text" id="editStaffNameInput" value="${currentName}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
-    </div>
-    
-    <div class="input-group">
-      <label>Role</label>
-      <select id="editRoleInput" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
-        <option value="Admin" ${currentRole === 'Admin' ? 'selected' : ''}>Admin</option>
-        <option value="HR" ${currentRole === 'HR' ? 'selected' : ''}>HR</option>
-        <option value="Referee" ${currentRole === 'Referee' ? 'selected' : ''}>Referee</option>
-      </select>
-    </div>
-
-    <div class="input-group">
-      <label>Access Expiry Date (Leave blank for No Expiry)</label>
-      <input type="date" id="editExpiryInput" value="${dateValue}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
-    </div>
+    <div class="input-group" style="margin-top:15px;"><label>Staff Name</label><input type="text" id="editStaffNameInput" value="${currentName}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"></div>
+    <div class="input-group"><label>Role</label><select id="editRoleInput" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"><option value="Admin" ${currentRole === 'Admin' ? 'selected' : ''}>Admin</option><option value="HR" ${currentRole === 'HR' ? 'selected' : ''}>HR</option><option value="Referee" ${currentRole === 'Referee' ? 'selected' : ''}>Referee</option></select></div>
+    <div class="input-group"><label>Access Expiry Date (Leave blank for No Expiry)</label><input type="date" id="editExpiryInput" value="${dateValue}" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"></div>
   `;
-  
   document.querySelector('.modal-footer').innerHTML = `
     <button class="btn btn-primary" onclick="saveUserDetails('${username}')" style="width:auto; margin-right:10px;">Save Changes</button>
     <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
   `;
-  
   document.getElementById('customModal').style.display = 'flex';
 }
 
@@ -769,24 +850,23 @@ async function saveUserDetails(username) {
   const newName = document.getElementById('editStaffNameInput').value.trim();
   const newRole = document.getElementById('editRoleInput').value;
   const newExpiry = document.getElementById('editExpiryInput').value;
-  
   if(!newName) return showModal("Error", "Staff Name cannot be empty.");
-  
-  const res = await apiCall('updateUserDetails', { 
-    username: username, 
-    newStaffName: newName,
-    newRole: newRole,
-    newExpiry: newExpiry
-  });
-  
+  const res = await apiCall('updateUserDetails', { username: username, newStaffName: newName, newRole: newRole, newExpiry: newExpiry });
   if(res.success) {
     closeModal();
     showModal("Success", res.message);
-    loadUserManagementTable(); // Refresh the table
+    loadUserManagementTable();
   } else {
     showModal("Error", res.message);
   }
 }
+
+async function toggleUser(username) {
+  const res = await apiCall('toggleUserStatus', { username: username });
+  showModal("Status Updated", res.message);
+  loadUserManagementTable();
+}
+
 async function adminResetPass(username) {
   if(!confirm("Reset password for " + username + "? A new password will be emailed to them.")) return;
   const res = await apiCall('adminResetPassword', { username: username });
@@ -833,15 +913,12 @@ function resizeAndUploadLogo() {
 async function createNewUser() {
   const role = document.getElementById('newRole').value;
   const staffName = document.getElementById('newStaffName').value;
-  
   if(!staffName) return showModal("Error", "Please enter the Staff Name.");
-
   let perms = "";
   if(role !== 'Referee') {
     const checks = document.querySelectorAll('.perm-check:checked');
     perms = Array.from(checks).map(c => c.value).join(",");
   }
-  
   const res = await apiCall('createUser', {
     username: document.getElementById('newUser').value,
     password: document.getElementById('newPass').value,
@@ -849,9 +926,8 @@ async function createNewUser() {
     email: document.getElementById('newEmail').value,
     expiryDate: document.getElementById('newExpiry').value,
     permissions: perms,
-    staffName: staffName // 🔥 Send the new field
+    staffName: staffName
   });
-  
   showModal("System Message", res.message);
   if(res.success) { 
     document.getElementById('newStaffName').value = ''; 
@@ -859,17 +935,5 @@ async function createNewUser() {
     document.getElementById('newPass').value = ''; 
     document.getElementById('newEmail').value = ''; 
     loadUserManagementTable();
-  }
-}
-function togglePasswordVisibility() {
-  const passwordField = document.getElementById('password');
-  const toggleIcon = document.querySelector('.toggle-password');
-  
-  if (passwordField.type === 'password') {
-    passwordField.type = 'text';
-    toggleIcon.innerText = '🙈'; // Change icon to hide
-  } else {
-    passwordField.type = 'password';
-    toggleIcon.innerText = '👁️'; // Change icon to show
   }
 }
