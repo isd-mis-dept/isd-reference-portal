@@ -448,16 +448,22 @@ async function loadDashboard() {
     html += '<div class="card" style="border-top-color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; text-align:center;"><h1 style="font-size:36px; color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; margin:0;">' + childSafetyFlags + '</h1><p style="color:#777; font-weight:bold;">Child Safety Flags</p></div>';
     html += '</div>';
 
-    // Charts Row 1 (Retention & Parents)
-    html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">';
-    html += '<div class="card"><h3>Retention Consensus</h3><canvas id="retentionChart"></canvas></div>';
-    html += '<div class="card"><h3>Parent Reaction</h3><canvas id="parentChart"></canvas></div>';
-    html += '</div>';
-
-    // Charts Row 2 (Radar & Soft Skills)
-    html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">';
-    html += '<div class="card"><h3>Core Teaching Competencies (Avg)</h3><canvas id="radarChart"></canvas></div>';
-    html += '<div class="card"><h3>Soft Skills & Behaviour (Avg)</h3><canvas id="softSkillsChart"></canvas></div>';
+    // 🔥 NEW: Responsive grid layout with fixed height chart containers
+    
+    html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-bottom:20px;">';
+    
+    html += '<div class="card"><h3>Retention Consensus</h3>';
+    html += '<div style="position: relative; height: 250px; width: 100%;"><canvas id="retentionChart"></canvas></div></div>';
+    
+    html += '<div class="card"><h3>Parent Reaction</h3>';
+    html += '<div style="position: relative; height: 250px; width: 100%;"><canvas id="parentChart"></canvas></div></div>';
+    
+    html += '<div class="card"><h3>Core Teaching Competencies (Avg)</h3>';
+    html += '<div style="position: relative; height: 250px; width: 100%;"><canvas id="radarChart"></canvas></div></div>';
+    
+    html += '<div class="card"><h3>Soft Skills & Behaviour (Avg)</h3>';
+    html += '<div style="position: relative; height: 250px; width: 100%;"><canvas id="softSkillsChart"></canvas></div></div>';
+    
     html += '</div>';
 
     // Buttons
