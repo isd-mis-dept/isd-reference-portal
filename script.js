@@ -826,14 +826,24 @@ async function saveUserDetails(username) {
   const newRole = document.getElementById('editRoleInput').value;
   const newExpiry = document.getElementById('editExpiryInput').value;
   if(!newName) return showModal("Error", "Staff Name cannot be empty.");
+  
   const res = await apiCall('updateUserDetails', { username: username, newStaffName: newName, newRole: newRole, newExpiry: newExpiry });
-  if(res.success) { closeModal(); showModal("Success", res.message); loadUserManagementTable(); } else { showModal("Error", res.message); }
+  
+  if(res.success) {
+    closeModal();
+    showModal("Success", res.message);
+    // 🔥 FIX: Refresh the correct table based on the current page
+    if(document.getElementById('userManagementTable')) loadUserManagementTable();
+    if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
+  } else {
+    showModal("Error", res.message);
+  }
 }
 
 async function toggleUser(username) {
   const res = await apiCall('toggleUserStatus', { username: username });
   showModal("Status Updated", res.message);
-  // Refresh whichever table is currently visible
+  // 🔥 FIX: Refresh the correct table based on the current page
   if(document.getElementById('userManagementTable')) loadUserManagementTable();
   if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
 }
@@ -848,7 +858,9 @@ async function deleteSystemUser(username) {
   if(!confirm("Are you sure you want to permanently delete " + username + "? This cannot be undone.")) return;
   const res = await apiCall('deleteUser', { username: username });
   showModal("User Deleted", res.message);
-  loadUserManagementTable();
+  // 🔥 FIX: Refresh the correct table based on the current page
+  if(document.getElementById('userManagementTable')) loadUserManagementTable();
+  if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
 }
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
