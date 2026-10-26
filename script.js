@@ -198,6 +198,37 @@ async function showDashboardTable(type) {
   document.getElementById('customModal').style.display = 'flex';
 }
 
+async function showSafetyFlagsTable() {
+  showModal("Loading...", "<p>Fetching safety flag records...</p>");
+  
+  const records = await apiCall('getSafetyFlagsData');
+  
+  let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">';
+  html += '<tr style="background:#FF5C35; color:white; text-align:left;"><th style="padding:10px;">Date</th><th style="padding:10px;">Candidate</th><th style="padding:10px;">Referee</th><th style="padding:10px;">Referee Comments</th></tr>';
+  
+  if(!records || records.length === 0) {
+    html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No safety flags recorded. Great news!</td></tr>';
+  } else {
+    records.forEach(r => {
+      let d = new Date(r.date).toLocaleDateString();
+      html += '<tr style="border-bottom:1px solid #eee;">';
+      html += '<td style="padding:10px;">' + d + '</td>';
+      html += '<td style="padding:10px; font-weight:bold;">' + r.candidate + '</td>';
+      html += '<td style="padding:10px;">' + r.referee + '</td>';
+      html += '<td style="padding:10px; color: #FF5C35;">' + r.comments + '</td>';
+      html += '</tr>';
+    });
+  }
+  
+  html += '</table></div>';
+  
+  document.getElementById('modalTitle').innerText = "⚠️ Child Safety Concerns";
+  document.getElementById('modalMessage').innerHTML = html;
+  document.querySelector('.modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Close</button>`;
+  document.querySelector('.modal-box').style.maxWidth = '800px';
+  document.getElementById('customModal').style.display = 'flex';
+}
+
 function generateCaptcha() {
   const a = Math.floor(Math.random() * 10) + 1;
   const b = Math.floor(Math.random() * 10) + 1;
@@ -445,8 +476,7 @@ async function loadDashboard() {
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px;">';
     html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer;"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
     html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer;"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
-    html += '<div class="card" style="border-top-color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; text-align:center;"><h1 style="font-size:36px; color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; margin:0;">' + childSafetyFlags + '</h1><p style="color:#777; font-weight:bold;">Child Safety Flags</p></div>';
-    html += '</div>';
+    html += '<div class="card" onclick="showSafetyFlagsTable()" style="border-top-color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; margin:0;">' + childSafetyFlags + '</h1><p style="color:#777; font-weight:bold;">Child Safety Flags</p></div>';
 
     // 🔥 NEW: Responsive grid layout with fixed height chart containers
     
