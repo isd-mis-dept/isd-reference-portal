@@ -52,7 +52,8 @@ async function showSafetyFlagsTable() {
       let d = new Date(r.date).toLocaleDateString();
       html += '<tr style="border-bottom:1px solid #eee;">';
       html += '<td style="padding:10px;">' + d + '</td>';
-      html += '<td style="padding:10px; font-weight:bold;">' + r.candidate + '</td>';
+      // 🔥 Candidate name is now a clickable link
+      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.assignmentId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
       html += '<td style="padding:10px;">' + r.referee + '</td>';
       html += '<td style="padding:10px; color: #FF5C35;">' + r.comments + '</td>';
       html += '</tr>';
@@ -84,7 +85,13 @@ async function showDashboardTable(type) {
     else {
       records.forEach(r => {
         let d = new Date(r.date).toLocaleDateString();
-        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.overallRating + '</td></tr>';
+        // 🔥 Candidate name is now a clickable link
+        html += '<tr style="border-bottom:1px solid #eee;">';
+        html += '<td style="padding:10px;">' + d + '</td>';
+        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.assignmentId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
+        html += '<td style="padding:10px;">' + r.referee + '</td>';
+        html += '<td style="padding:10px;">' + r.overallRating + '</td>';
+        html += '</tr>';
       });
     }
     html += '</table></div>';
@@ -98,7 +105,13 @@ async function showDashboardTable(type) {
       records.forEach(r => {
         let statusColor = r.status === 'Sent' ? '#38D430' : '#FFDA00';
         let statusText = r.status === 'Sent' ? 'Email Sent' : 'Pending Email';
-        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.officialName + '</td><td style="padding:10px;">' + r.email + '</td><td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + statusText + '</td></tr>';
+        html += '<tr style="border-bottom:1px solid #eee;">';
+        // 🔥 Candidate name is now a clickable link
+        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.id + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
+        html += '<td style="padding:10px;">' + r.officialName + '</td>';
+        html += '<td style="padding:10px;">' + r.email + '</td>';
+        html += '<td style="padding:10px; color:' + statusColor + '; font-weight:bold;">' + statusText + '</td>';
+        html += '</tr>';
       });
     }
     html += '</table></div>';
@@ -845,6 +858,8 @@ async function submitFormData() {
   document.getElementById('modalTitle').innerText = "Submitting...";
   document.getElementById('modalMessage').innerHTML = "<p>Please wait while we save your reference...</p>";
   document.querySelector('.modal-footer').innerHTML = ``;
+  // Inside submitFormData, right before calling apiCall:
+  data.assignmentId = assignId; 
   const res = await apiCall('submitForm', { formData: data, username: currentUser.name, assignmentId: assignId });
   if(res.success) {
     showModal("Success", "Form submitted successfully! HR has been notified.");
