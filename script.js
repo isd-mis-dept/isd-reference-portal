@@ -50,10 +50,9 @@ async function showSafetyFlagsTable() {
   } else {
     records.forEach(r => {
       let d = new Date(r.date).toLocaleDateString();
+      let safeId = r.assignmentId || r.referee;
       html += '<tr style="border-bottom:1px solid #eee;">';
       html += '<td style="padding:10px;">' + d + '</td>';
-      // 🔥 Candidate name is now a clickable link
-      let safeId = r.assignmentId || r.referee;
       html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + safeId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
       html += '<td style="padding:10px;">' + r.referee + '</td>';
       html += '<td style="padding:10px; color: #FF5C35;">' + r.comments + '</td>';
@@ -86,12 +85,10 @@ async function showDashboardTable(type) {
     else {
       records.forEach(r => {
         let d = new Date(r.date).toLocaleDateString();
-        // 🔥 Candidate name is now a clickable link
+        let safeId = r.assignmentId || r.referee;
         html += '<tr style="border-bottom:1px solid #eee;">';
         html += '<td style="padding:10px;">' + d + '</td>';
-        // If assignmentId is missing (old record), try to fallback to the referee username
-        let safeId = r.assignmentId || r.referee; 
-        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + safeId + '\', \'' +             r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate +           '</a></td>';
+        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + safeId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
         html += '<td style="padding:10px;">' + r.referee + '</td>';
         html += '<td style="padding:10px;">' + r.overallRating + '</td>';
         html += '</tr>';
@@ -109,7 +106,6 @@ async function showDashboardTable(type) {
         let statusColor = r.status === 'Sent' ? '#38D430' : '#FFDA00';
         let statusText = r.status === 'Sent' ? 'Email Sent' : 'Pending Email';
         html += '<tr style="border-bottom:1px solid #eee;">';
-        // 🔥 Candidate name is now a clickable link
         html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.id + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
         html += '<td style="padding:10px;">' + r.officialName + '</td>';
         html += '<td style="padding:10px;">' + r.email + '</td>';
@@ -153,7 +149,7 @@ async function showPDFModal(assignmentId, candidateName) {
   };
 
   for (let key in data) {
-    if (key !== 'candidateName' && key !== 'refereeName') {
+    if (key !== 'candidateName' && key !== 'refereeName' && key !== 'assignmentId') {
       let displayLabel = labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
       let value = data[key] || 'N/A';
       tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold; font-size:13px;">${displayLabel}</td><td style="padding:10px; border:1px solid #ddd; font-size:13px;">${value}</td></tr>`;
@@ -387,12 +383,14 @@ async function handleLogin(e) {
       document.getElementById('nav-form').style.display = 'block';
       document.getElementById('nav-form').innerText = "My Submissions";
       document.getElementById('nav-admin').style.display = 'none';
+      document.getElementById('nav-candidates').style.display = 'none'; 
       showModule('form', document.getElementById('nav-form'));
     } else {
       document.getElementById('nav-dashboard').style.display = perms.includes("Dashboard") ? 'block' : 'none';
       document.getElementById('nav-sendEmail').style.display = perms.includes("SendEmail") ? 'block' : 'none';
       document.getElementById('nav-form').style.display = perms.includes("ManageReferees") ? 'block' : 'none';
       document.getElementById('nav-admin').style.display = (res.role === 'Admin' || perms.includes("Admin")) ? 'block' : 'none';
+      document.getElementById('nav-candidates').style.display = perms.includes("ManageReferees") ? 'block' : 'none';
       showModule('dashboard', document.getElementById('nav-dashboard'));
     }
   } else {
@@ -422,6 +420,7 @@ function showModule(moduleName, el, e) {
     else loadManageRefereesPage(); 
   }
   else if (moduleName === 'sendEmail') loadSendEmailPage();
+  else if (moduleName === 'candidates') loadCandidateOverview(); 
 }
 
 // --- DASHBOARD MODULE ---
@@ -509,17 +508,14 @@ async function loadDashboard() {
       overallRating: (ratingCounts.overallRating / divisor).toFixed(1)
     };
 
-    // --- DASHBOARD LAYOUT ---
     let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">HR Intelligence Dashboard</h2>';
     
-    // Row 1: Three Clickable Cards
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; margin-bottom:20px;">';
     html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer; transition: transform 0.2s; padding:20px;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
     html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer; transition: transform 0.2s; padding:20px;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
     html += '<div class="card" onclick="showSafetyFlagsTable()" style="border-top-color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; text-align:center; cursor:pointer; transition: transform 0.2s; padding:20px;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; margin:0;">' + childSafetyFlags + '</h1><p style="color:#777; font-weight:bold;">Child Safety Flags</p></div>';
     html += '</div>';
 
-    // Row 2: Charts (2x2 Grid)
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap:20px; margin-bottom:20px;">';
     html += '<div class="card" style="padding:15px;"><h4 style="margin-top:0; color:var(--isd-teal);">Retention Consensus</h4><div style="position: relative; height: 220px; width: 100%;"><canvas id="retentionChart"></canvas></div></div>';
     html += '<div class="card" style="padding:15px;"><h4 style="margin-top:0; color:var(--isd-teal);">Parent Reaction</h4><div style="position: relative; height: 220px; width: 100%;"><canvas id="parentChart"></canvas></div></div>';
@@ -527,13 +523,11 @@ async function loadDashboard() {
     html += '<div class="card" style="padding:15px;"><h4 style="margin-top:0; color:var(--isd-teal);">Soft Skills & Behaviour (Avg)</h4><div style="position: relative; height: 220px; width: 100%;"><canvas id="softSkillsChart"></canvas></div></div>';
     html += '</div>';
 
-    // Row 3: Action Buttons
     html += '<div style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
     html += '<button onclick="loadAuditLogs()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">📋 View Audit Trail</button>';
     html += '</div>';
 
-    // Row 4: Recent Submissions Table
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;">';
     html += '<table style="width:100%; border-collapse:collapse; min-width:600px;">';
     html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Overall Rating</th></tr>';
@@ -581,6 +575,53 @@ async function loadAuditLogs() {
   }
   html += '</table></div></div>';
   document.getElementById('auditArea').innerHTML = html;
+}
+
+// --- CANDIDATE OVERVIEW MODULE ---
+async function loadCandidateOverview() {
+  const all = await apiCall('getAllAssignments');
+  if(!all) return;
+
+  let tHtml = '<div class="card"><h2 style="color:var(--isd-teal); margin-bottom:20px;">Candidate Overview</h2>';
+  tHtml += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
+  tHtml += '<tr style="background:var(--isd-teal); color:white; text-align:left;">';
+  tHtml += '<th style="padding:12px;">Referee (User)</th>';
+  tHtml += '<th style="padding:12px;">Referee Official Name</th>';
+  tHtml += '<th style="padding:12px;">Referee Email</th>';
+  tHtml += '<th style="padding:12px;">Candidate</th>';
+  tHtml += '<th style="padding:12px;">Status</th>';
+  tHtml += '<th style="padding:12px;">Action</th>';
+  tHtml += '</tr>';
+  
+  if(all.length === 0) {
+    tHtml += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No candidates found in the system.</td></tr>';
+  } else {
+    all.forEach(c => {
+      let statusColor = "#777";
+      if (c.status === 'Submitted') statusColor = '#38D430';
+      else if (c.status === 'Sent') statusColor = '#004C45';
+      else if (c.status === 'Pending') statusColor = '#FFDA00';
+
+      tHtml += '<tr style="border-bottom:1px solid #eee;">';
+      tHtml += '<td style="padding:12px;">' + c.username + '</td>';
+      tHtml += '<td style="padding:12px;">' + c.officialName + '</td>';
+      tHtml += '<td style="padding:12px;">' + c.email + '</td>';
+      tHtml += '<td style="padding:12px; font-weight:bold;">' + c.candidate + '</td>';
+      tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
+      
+      tHtml += '<td style="padding:12px;">';
+      if (c.status === 'Submitted') {
+        tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
+      } else {
+        tHtml += '<span style="color:#ccc; font-size:12px;">Awaiting Action</span>';
+      }
+      tHtml += '</td>';
+      tHtml += '</tr>';
+    });
+  }
+  
+  tHtml += '</table></div></div>';
+  document.getElementById('contentArea').innerHTML = tHtml;
 }
 
 // --- MANAGE REFEREES MODULE ---
@@ -787,14 +828,12 @@ async function loadRefForm(candName, refUser) {
   html += '<input type="hidden" name="candidateName" value="' + candName + '">';
   html += '<input type="hidden" name="refereeName" value="' + refUser + '">';
 
-  // Section 1
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 1: Background Information</h4>';
   html += '<div class="input-group"><label>During your time supervising this candidate, what was YOUR position and/or title? *</label><input type="text" name="supervisorPosition" required></div>';
   html += '<div class="input-group"><label>How long did you work together with this candidate? *</label><input type="text" name="workDuration" required></div>';
   html += '<div class="input-group"><label>What is the name of the school/organization where you supervised this candidate? *</label><input type="text" name="schoolName" required></div>';
   html += '<div class="input-group"><label>Do you have any concerns about this candidate\'s behaviour around children, or working unattended with children? *</label><select name="childSafetyConcerns" required><option value="No">No</option><option value="Yes">Yes</option></select></div>';
 
-  // Section 2
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 2: General Assessment</h4>';
   html += '<div class="input-group"><label>What are this candidate\'s greatest strengths? *</label><textarea name="greatestStrengths" rows="3" required></textarea></div>';
   html += '<div class="input-group"><label>In what areas would you like to see the candidate develop? *</label><textarea name="areasForDevelopment" rows="3" required></textarea></div>';
@@ -807,7 +846,6 @@ async function loadRefForm(candName, refUser) {
   html += '<div class="input-group"><label>Would you wish your school to retain or re-employ this candidate? *</label><select name="retainCandidate" required><option value="with great enthusiasm">With Great Enthusiasm</option><option value="with enthusiasm">With Enthusiasm</option><option value="with neutrality">With Neutrality</option><option value="with slight hesitation">With Slight Hesitation</option><option value="will not retain or re-employ">Will Not Retain or Re-employ</option></select></div>';
   html += '<div class="input-group"><label>How do you believe most parents would react to the news that their child was scheduled to have this teacher? *</label><select name="parentReaction" required><option value="with great enthusiasm">With Great Enthusiasm</option><option value="with enthusiasm">With Enthusiasm</option><option value="with neutrality">With Neutrality</option><option value="with slight hesitation">With Slight Hesitation</option></select></div>';
 
-  // Section 3
   const ratingOptions = '<option value="Outstanding">Outstanding</option><option value="Above average">Above Average</option><option value="Average">Average</option><option value="Below average">Below Average</option><option value="N/A Not applicable">N/A Not applicable</option>';
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 3: Performance Ratings</h4>';
   
@@ -830,7 +868,6 @@ async function loadRefForm(candName, refUser) {
     html += `<div class="input-group"><label>${f.label} *</label>${scaleLabel}<select name="${f.name}" required>${ratingOptions}</select></div>`;
   });
 
-  // Section 4
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 4: Final Comments</h4>';
   html += '<div class="input-group"><label>Any further comments about this candidate: *</label><textarea name="furtherComments" rows="3" required></textarea></div>';
   html += '<div class="input-group"><label>Lastly, if necessary, would you be willing to participate in a 5 minute telephone call as part of our safer recruitment process? *</label><select name="phoneCallWilling" required><option value="Yes">Yes</option><option value="No">No</option></select></div>';
@@ -861,8 +898,9 @@ async function submitFormData() {
   document.getElementById('modalTitle').innerText = "Submitting...";
   document.getElementById('modalMessage').innerHTML = "<p>Please wait while we save your reference...</p>";
   document.querySelector('.modal-footer').innerHTML = ``;
-  // Inside submitFormData, right before calling apiCall:
+  
   data.assignmentId = assignId; 
+
   const res = await apiCall('submitForm', { formData: data, username: currentUser.name, assignmentId: assignId });
   if(res.success) {
     showModal("Success", "Form submitted successfully! HR has been notified.");
