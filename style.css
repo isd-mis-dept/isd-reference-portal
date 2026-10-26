@@ -145,3 +145,21 @@ body { background-color: var(--bg-light); color: var(--text-dark); }
   /* Responsive form rows */
   .form-row { flex-direction: column; gap: 0; }
 }
+/* Add this to the bottom of style.css */
+
+.modal-box {
+  max-height: 90vh;      /* Ensure modal never exceeds 90% of screen height */
+  overflow-y: auto;      /* Enable vertical scrolling inside the modal */
+}
+
+/* Optional: Make the scrollbar look nicer on webkit browsers */
+.modal-box::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-box::-webkit-scrollbar-thumb {
+  background: #ccc; 
+  border-radius: 4px;
+}
+.modal-box::-webkit-scrollbar-thumb:hover {
+  background: #999; 
+}
