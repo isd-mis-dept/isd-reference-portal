@@ -65,12 +65,83 @@ body { background-color: var(--bg-light); color: var(--text-dark); }
   color: var(--isd-teal);
 }
 @media (max-width: 768px) {
-  .app-container { flex-direction: column; }
-  .sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; }
+  /* Let the body scroll naturally */
+  .app-container { 
+    flex-direction: column; 
+    height: 100vh; 
+    overflow: hidden; 
+  }
+  
+  /* Transform Sidebar into a Top Navigation Pill Bar */
+  .sidebar {
+    width: 100%;
+    height: auto;
+    background-color: white;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+    padding: 15px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    z-index: 10;
+  }
+  
+  /* Hide the "ISD Menu" text */
   .sidebar-brand { display: none; }
-  .sidebar a { padding: 10px 15px; border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
-  .sidebar a:hover, .sidebar a.active { border-left: none; border-bottom-color: var(--isd-red); }
-  .logout-btn { margin-top: 0; }
-  .top-header { flex-direction: column; gap: 10px; text-align: center; }
+  
+  /* Style the links as Pill Buttons */
+  .sidebar a { 
+    background-color: #e6f2f2; /* Light teal background */
+    border: 1px solid transparent;
+    border-radius: 25px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--isd-teal);
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 1 auto;
+    transition: all 0.2s ease;
+  }
+  
+  /* Active State (like "Home" in your screenshot) */
+  .sidebar a.active, .sidebar a:hover { 
+    background-color: white;
+    color: var(--isd-teal);
+    border-color: #dcdcdc;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+  
+  /* Style the Logout button distinctively */
+  .sidebar a.logout-btn {
+    background-color: #ffebee;
+    color: var(--isd-red) !important;
+  }
+  .sidebar a.logout-btn:hover {
+    background-color: white;
+    border-color: #ffcdd2;
+  }
+
+  /* Adjust Main Content to fill remaining screen */
+  .main-content { 
+    height: calc(100vh - 130px); /* Adjust based on nav height */
+    overflow-y: auto; 
+  }
+
+  /* Make header smaller to save space */
+  .top-header { 
+    flex-direction: row; 
+    justify-content: space-between; 
+    padding: 10px 15px; 
+  }
+  
+  .header-left h1 { font-size: 16px; }
+  .header-right { display: none; } /* Hide username to save space */
+  
+  /* Responsive form rows */
   .form-row { flex-direction: column; gap: 0; }
 }
