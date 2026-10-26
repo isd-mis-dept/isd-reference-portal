@@ -53,7 +53,8 @@ async function showSafetyFlagsTable() {
       html += '<tr style="border-bottom:1px solid #eee;">';
       html += '<td style="padding:10px;">' + d + '</td>';
       // 🔥 Candidate name is now a clickable link
-      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.assignmentId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
+      let safeId = r.assignmentId || r.referee;
+      html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + safeId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
       html += '<td style="padding:10px;">' + r.referee + '</td>';
       html += '<td style="padding:10px; color: #FF5C35;">' + r.comments + '</td>';
       html += '</tr>';
@@ -88,7 +89,9 @@ async function showDashboardTable(type) {
         // 🔥 Candidate name is now a clickable link
         html += '<tr style="border-bottom:1px solid #eee;">';
         html += '<td style="padding:10px;">' + d + '</td>';
-        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + r.assignmentId + '\', \'' + r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate + '</a></td>';
+        // If assignmentId is missing (old record), try to fallback to the referee username
+        let safeId = r.assignmentId || r.referee; 
+        html += '<td style="padding:10px;"><a href="javascript:void(0)" onclick="showPDFModal(\'' + safeId + '\', \'' +             r.candidate + '\')" style="color:var(--isd-teal); font-weight:bold; text-decoration:underline;">' + r.candidate +           '</a></td>';
         html += '<td style="padding:10px;">' + r.referee + '</td>';
         html += '<td style="padding:10px;">' + r.overallRating + '</td>';
         html += '</tr>';
