@@ -332,35 +332,80 @@ function showModule(moduleName, el, e) {
 }
 
 // --- DASHBOARD MODULE ---
+
 async function loadDashboard() {
   const rawData = await apiCall('getDashboardStats');
+  
   try {
     if (!rawData) throw new Error("No data received");
+    
     let subs = rawData.rawSubmissions || [];
     let assign = rawData.rawAssignments || [];
+    
     let totalSubmissions = subs.length;
     let pending = 0;
+    let childSafetyFlags = 0;
+
+    // Data Aggregation Variables
+    let retainCounts = { great: 0, enthusiastic: 0, neutral: 0, hesitant: 0, no: 0 };
+    let parentCounts = { great: 0, enthusiastic: 0, neutral: 0, hesitant: 0 };
+    let softSkills = { adaptability: 0, teamPlayer: 0, humour: 0, tolerance: 0, openComm: 0 };
+    let ratingCounts = {}; // For the radar chart
+    let count = 0;
     
+    // Rating map to convert text to numbers for the radar chart
+    const ratingMap = {
+      "Outstanding": 5,
+      "Above average": 4,
+      "Average": 3,
+      "Below average": 2,
+      "N/A Not applicable": 0
+    };
+
+    let recent = [];
+
+    // Process Data
     for (let i = 0; i < assign.length; i++) {
       if (assign[i][3] === "Pending" || assign[i][3] === "Sent") pending++;
     }
 
-    let recent = [];
-    let analytics = { retain: {great:0, enthusiastic:0, neutral:0, hesitant:0, no:0} };
-    let count = 0;
-    
     for (let i = subs.length - 1; i >= 0; i--) {
       try {
         let data = JSON.parse(subs[i][2]);
         
-        if(data.retainCandidate) {
-          if(data.retainCandidate.includes("great")) analytics.retain.great++;
-          else if(data.retainCandidate.includes("enthusiasm")) analytics.retain.enthusiastic++;
-          else if(data.retainCandidate.includes("neutral")) analytics.retain.neutral++;
-          else if(data.retainCandidate.includes("hesitation")) analytics.retain.hesitant++;
-          else if(data.retainCandidate.includes("not")) analytics.retain.no++;
+        // 1. Child Safety Flag
+        if (data.childSafetyConcerns === "Yes") childSafetyFlags++;
+
+        // 2. Retention & Parent Reaction
+        if (data.retainCandidate) {
+          if (data.retainCandidate.includes("great")) retainCounts.great++;
+          else if (data.retainCandidate.includes("enthusiasm")) retainCounts.enthusiastic++;
+          else if (data.retainCandidate.includes("neutral")) retainCounts.neutral++;
+          else if (data.retainCandidate.includes("hesitation")) retainCounts.hesitant++;
+          else if (data.retainCandidate.includes("not")) retainCounts.no++;
         }
-        
+        if (data.parentReaction) {
+          if (data.parentReaction.includes("great")) parentCounts.great++;
+          else if (data.parentReaction.includes("enthusiasm")) parentCounts.enthusiastic++;
+          else if (data.parentReaction.includes("neutral")) parentCounts.neutral++;
+          else if (data.parentReaction.includes("hesitation")) parentCounts.hesitant++;
+        }
+
+        // 3. Soft Skills (Convert text ratings to numbers)
+        softSkills.adaptability += ratingMap[data.adaptability] || 0;
+        softSkills.teamPlayer += ratingMap[data.teamPlayer] || 0;
+        softSkills.humour += ratingMap[data.humour] || 0;
+        softSkills.tolerance += ratingMap[data.tolerance] || 0;
+        softSkills.openComm += ratingMap[data.openCommunication] || 0;
+
+        // 4. Core Competencies for Radar
+        const coreFields = ['effectiveness', 'subjectKnowledge', 'relationshipStudents', 'communication', 'workEthic', 'overallRating'];
+        coreFields.forEach(field => {
+          if (!ratingCounts[field]) ratingCounts[field] = 0;
+          ratingCounts[field] += ratingMap[data[field]] || 0;
+        });
+
+        // 5. Recent Submissions (Top 5)
         if (count < 5) {
           recent.push({ 
             date: subs[i][0], 
@@ -370,31 +415,58 @@ async function loadDashboard() {
           });
           count++;
         }
+
       } catch(e) { }
     }
+
+    // Calculate Averages
+    let divisor = totalSubmissions > 0 ? totalSubmissions : 1;
+    let avgSoftSkills = {
+      adaptability: (softSkills.adaptability / divisor).toFixed(1),
+      teamPlayer: (softSkills.teamPlayer / divisor).toFixed(1),
+      humour: (softSkills.humour / divisor).toFixed(1),
+      tolerance: (softSkills.tolerance / divisor).toFixed(1),
+      openComm: (softSkills.openComm / divisor).toFixed(1)
+    };
     
-    let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">System Overview</h2>';
+    let avgRadar = {
+      effectiveness: (ratingCounts.effectiveness / divisor).toFixed(1),
+      subjectKnowledge: (ratingCounts.subjectKnowledge / divisor).toFixed(1),
+      relationshipStudents: (ratingCounts.relationshipStudents / divisor).toFixed(1),
+      communication: (ratingCounts.communication / divisor).toFixed(1),
+      workEthic: (ratingCounts.workEthic / divisor).toFixed(1),
+      overallRating: (ratingCounts.overallRating / divisor).toFixed(1)
+    };
+
+    // --- BUILD THE HTML ---
+    let html = '<h2 style="margin-bottom:20px; color:var(--isd-teal);">HR Intelligence Dashboard</h2>';
     
+    // Top Cards
     html += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px;">';
-    html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
-    html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
+    html += '<div class="card" onclick="showDashboardTable(\'completed\')" style="border-top-color:#38D430; text-align:center; cursor:pointer;"><h1 style="font-size:36px; color:#38D430; margin:0;">' + totalSubmissions + '</h1><p style="color:#777; font-weight:bold;">Completed References</p></div>';
+    html += '<div class="card" onclick="showDashboardTable(\'pending\')" style="border-top-color:#FFDA00; text-align:center; cursor:pointer;"><h1 style="font-size:36px; color:#FFDA00; margin:0;">' + pending + '</h1><p style="color:#777; font-weight:bold;">Pending Requests</p></div>';
+    html += '<div class="card" style="border-top-color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; text-align:center;"><h1 style="font-size:36px; color:' + (childSafetyFlags > 0 ? '#FF5C35' : '#777') + '; margin:0;">' + childSafetyFlags + '</h1><p style="color:#777; font-weight:bold;">Child Safety Flags</p></div>';
     html += '</div>';
-    
-    html += '<div class="card"><h3>Retention Insights</h3><p style="margin-bottom:15px; color:#666;">Based on ' + totalSubmissions + ' total submissions.</p>';
-    html += '<div style="display:grid; grid-template-columns: 1fr; gap:10px;">';
-    html += '<div><h4 style="color:var(--isd-teal);">Would you retain this candidate?</h4>';
-    html += '<p>With Great Enthusiasm: <b>' + analytics.retain.great + '</b></p>';
-    html += '<p>With Enthusiasm: <b>' + analytics.retain.enthusiastic + '</b></p>';
-    html += '<p>With Neutrality: <b>' + analytics.retain.neutral + '</b></p>';
-    html += '<p>With Slight Hesitation: <b>' + analytics.retain.hesitant + '</b></p>';
-    html += '<p>Will Not Retain: <b>' + analytics.retain.no + '</b></p>';
-    html += '</div></div></div>';
-    
+
+    // Charts Row 1 (Retention & Parents)
+    html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">';
+    html += '<div class="card"><h3>Retention Consensus</h3><canvas id="retentionChart"></canvas></div>';
+    html += '<div class="card"><h3>Parent Reaction</h3><canvas id="parentChart"></canvas></div>';
+    html += '</div>';
+
+    // Charts Row 2 (Radar & Soft Skills)
+    html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">';
+    html += '<div class="card"><h3>Core Teaching Competencies (Avg)</h3><canvas id="radarChart"></canvas></div>';
+    html += '<div class="card"><h3>Soft Skills & Behaviour (Avg)</h3><canvas id="softSkillsChart"></canvas></div>';
+    html += '</div>';
+
+    // Buttons
     html += '<div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">';
     html += '<button onclick="downloadCSV()" class="btn btn-primary" style="width:auto;">📥 Export Submissions (CSV)</button>';
     html += '<button onclick="loadAuditLogs()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">📋 View Audit Trail</button>';
     html += '</div>';
-    
+
+    // Recent Submissions Table
     html += '<div class="card"><h3>Recent Submissions</h3><div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
     html += '<tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px; border-bottom:2px solid #ddd;">Date</th><th style="padding:10px; border-bottom:2px solid #ddd;">Candidate</th><th style="padding:10px; border-bottom:2px solid #ddd;">Referee</th><th style="padding:10px; border-bottom:2px solid #ddd;">Overall Rating</th></tr>';
     if(recent.length === 0) html += '<tr><td colspan="4" style="padding:20px; text-align:center; color:#777;">No submissions yet.</td></tr>';
@@ -403,9 +475,99 @@ async function loadDashboard() {
       html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:10px;">' + d + '</td><td style="padding:10px; font-weight:bold;">' + r.candidate + '</td><td style="padding:10px;">' + r.referee + '</td><td style="padding:10px;">' + r.overall + '</td></tr>';
     });
     html += '</table></div></div><div id="auditArea"></div>';
+    
     document.getElementById('contentArea').innerHTML = html;
+
+    // --- RENDER CHARTS WITH CHART.JS ---
+    renderCharts(retainCounts, parentCounts, avgRadar, avgSoftSkills);
+
   } catch (err) {
     document.getElementById('contentArea').innerHTML = '<div class="card"><h3 style="color:red;">Dashboard Error</h3><p>' + err.message + '</p></div>';
+  }
+}
+
+// 🔥 NEW: Chart Rendering Logic
+function renderCharts(retain, parent, radar, soft) {
+  const isMobile = window.innerWidth < 768;
+
+  // 1. Retention Chart (Bar)
+  const ctxRetain = document.getElementById('retentionChart');
+  if(ctxRetain) {
+    new Chart(ctxRetain, {
+      type: 'bar',
+      data: {
+        labels: ['Great Enthusiasm', 'Enthusiasm', 'Neutral', 'Hesitant', 'Will Not Retain'],
+        datasets: [{
+          label: 'Votes',
+          data: [retain.great, retain.enthusiastic, retain.neutral, retain.hesitant, retain.no],
+          backgroundColor: ['#38D430', '#7CE57A', '#FFDA00', '#FF9D00', '#FF5C35'],
+          borderRadius: 5
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // 2. Parent Reaction Chart (Doughnut)
+  const ctxParent = document.getElementById('parentChart');
+  if(ctxParent) {
+    new Chart(ctxParent, {
+      type: 'doughnut',
+      data: {
+        labels: ['Great Enthusiasm', 'Enthusiasm', 'Neutral', 'Hesitant'],
+        datasets: [{
+          data: [parent.great, parent.enthusiastic, parent.neutral, parent.hesitant],
+          backgroundColor: ['#004C45', '#38D430', '#FFDA00', '#FF5C35'],
+        }]
+      },
+      options: { responsive: true, cutout: '60%' }
+    });
+  }
+
+  // 3. Core Competency Radar
+  const ctxRadar = document.getElementById('radarChart');
+  if(ctxRadar) {
+    new Chart(ctxRadar, {
+      type: 'radar',
+      data: {
+        labels: ['Effectiveness', 'Subject Knowledge', 'Rel. Students', 'Communication', 'Work Ethic', 'Overall'],
+        datasets: [{
+          label: 'Average Score (1-5)',
+          data: [radar.effectiveness, radar.subjectKnowledge, radar.relationshipStudents, radar.communication, radar.workEthic, radar.overallRating],
+          backgroundColor: 'rgba(0, 76, 69, 0.2)',
+          borderColor: '#004C45',
+          pointBackgroundColor: '#FF5C35',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
+      }
+    });
+  }
+
+  // 4. Soft Skills Chart (Horizontal Bar)
+  const ctxSoft = document.getElementById('softSkillsChart');
+  if(ctxSoft) {
+    new Chart(ctxSoft, {
+      type: 'bar',
+      data: {
+        labels: ['Adaptability', 'Team Player', 'Humour', 'Tolerance', 'Open Comm.'],
+        datasets: [{
+          label: 'Average (1-5)',
+          data: [soft.adaptability, soft.teamPlayer, soft.humour, soft.tolerance, soft.openComm],
+          backgroundColor: '#004C45',
+          borderRadius: 5
+        }]
+      },
+      options: {
+        indexAxis: 'y', // Makes it horizontal
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { min: 0, max: 5 } }
+      }
+    });
   }
 }
 
