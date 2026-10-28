@@ -241,7 +241,12 @@ function generateCaptcha() {
   const a = Math.floor(Math.random() * 10) + 1;
   const b = Math.floor(Math.random() * 10) + 1;
   currentCaptchaAnswer = a + b;
-  document.getElementById('captchaQuestion').innerText = a + " + " + b + " = ?";
+  
+  const questionSpan = document.getElementById('captchaQuestion');
+  if(questionSpan) {
+    questionSpan.innerText = a + " + " + b + " = ?";
+  }
+  
   document.getElementById('captchaInput').value = '';
 }
 
