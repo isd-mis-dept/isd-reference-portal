@@ -241,12 +241,10 @@ function generateCaptcha() {
   const a = Math.floor(Math.random() * 10) + 1;
   const b = Math.floor(Math.random() * 10) + 1;
   currentCaptchaAnswer = a + b;
-  
   const questionSpan = document.getElementById('captchaQuestion');
   if(questionSpan) {
     questionSpan.innerText = a + " + " + b + " = ?";
   }
-  
   document.getElementById('captchaInput').value = '';
 }
 
@@ -487,19 +485,12 @@ async function loadManageRefereesPage() {
   html += '<table style="width:100%; border-collapse:collapse; font-size:14px;" id="candTable"><tr style="background:#eee; text-align:left;"><th style="padding:8px;">Candidate Name</th><th style="padding:8px; width:50px;">Action</th></tr></table></div>';
   html += '<button onclick="saveRefereeAssignment()" class="btn btn-primary">Add Referee and Candidate(s)</button></div>';
   
-  // 🔥 NEW: User Management (Referee Only) Section
+  // 🔥 Referee User Management Section
   html += '<div class="card"><h3>Referee User Management</h3>';
   html += '<div id="refereeManagementTable">Loading users...</div></div>';
   
   document.getElementById('contentArea').innerHTML = html;
-  
-  // Load the Referee Management Table
   loadRefereeManagementTable();
-}
-
-function toggleSubmitted() {
-  let el = document.getElementById('submittedRows');
-  if(el) el.style.display = el.style.display === 'none' ? 'table-row-group' : 'none';
 }
 
 function addCandidateToList() {
@@ -525,12 +516,9 @@ async function saveRefereeAssignment() {
   loadManageRefereesPage(); 
 }
 
-// 🔥 NEW: Function to load ONLY Referee users in the Manage Referees page
 async function loadRefereeManagementTable() {
   const users = await apiCall('getAllUsers');
   if(!users) return;
-  
-  // Filter to only show Referees
   const referees = users.filter(u => u.role === 'Referee');
   
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
@@ -542,15 +530,8 @@ async function loadRefereeManagementTable() {
     referees.forEach(u => {
       let statusColor = u.status === 'Active' ? '#38D430' : '#FF5C35';
       let toggleText = u.status === 'Active' ? 'Deactivate' : 'Activate';
-      
-      let expiryText = u.expiry;
-      let expiryColor = "#333";
-      if (u.expiry !== "No Expiry") {
-        let expDate = new Date(u.expiry);
-        let today = new Date();
-        today.setHours(0,0,0,0); 
-        if (expDate < today) { expiryColor = "#FF5C35"; expiryText += " (Expired)"; }
-      } else { expiryColor = "#777"; }
+      let expiryText = u.expiry; let expiryColor = "#333";
+      if (u.expiry !== "No Expiry") { let expDate = new Date(u.expiry); let today = new Date(); today.setHours(0,0,0,0); if (expDate < today) { expiryColor = "#FF5C35"; expiryText += " (Expired)"; } } else { expiryColor = "#777"; }
 
       html += '<tr style="border-bottom:1px solid #eee;">';
       html += '<td style="padding:10px; font-weight:bold;">' + (u.staffName || 'N/A') + '</td>';
@@ -567,12 +548,6 @@ async function loadRefereeManagementTable() {
   }
   html += '</table></div>';
   document.getElementById('refereeManagementTable').innerHTML = html;
-}
-
-async function resetRefPassword(username) {
-  if(!confirm("Are you sure you want to reset the password for " + username + "?")) return;
-  const res = await apiCall('resetPassword', { username: username });
-  showModal("Password Reset", res.message);
 }
 
 // --- SEND EMAIL MODULE ---
@@ -605,88 +580,65 @@ async function populateEmailFields() {
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
-  let previewHtml = "<p>Dear <b>" + rName + "</b>,</p>";<br>
-  previewHtml += "<p>Warm Greetings from International School Dhaka.</p>";<br>
-  previewHtml += "<p>My name is Tahnia Ahmed, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted <strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>";<br>
-  previewHtml += "<p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>"; <br>
-  previewHtml += "<p>Thank you in advance for your time and support.</p>";
-  previewHtml += "<div style='background-color:#f4f7f6; padding:15px; border-left:4px solid #FF5C35; border-radius:4px; margin:20px 0;'>";
-  previewHtml += "<p style='margin:5px 0;'><strong>Your Login Username:</strong> " + rUser + "</p>";
-  previewHtml += "<p style='margin:5px 0;'><strong>Your Password:</strong> " + tempPass + "</p>";
-  previewHtml += "</div>";
-  previewHtml += "<div style='text-align:center; margin: 20px 0;'><a href='" + formLink + "' style='background-color:#38D430; color:white; padding:12px 25px; text-decoration:none; border-radius:4px; font-weight:bold; display:inline-block;'>Login & Complete Form</a></div>";
-  previewHtml += "<p>Thank you for your time and cooperation.</p>";
-  previewHtml += "<p>Warm regards,<br><b>ISD HR Team</b></p>";
+  let previewHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+      <div style="background-color: #004C45; padding: 20px 30px; color: white;"><h2 style="margin:0;">Reference Checking Management System</h2></div>
+      <div style="padding: 30px; color: #333; line-height: 1.6;">
+        <h3 style="color: #004C45; margin-top: 0;">Dear ${rName},</h3>
+        <p>We hope this message finds you well. International School Dhaka is currently in the process of reviewing candidates for an open position, and we are reaching out to you as a professional reference for <strong>${cName}</strong>.</p>
+        <p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>
+        <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
+          <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
+          <p style="margin: 5px 0;"><strong>Username:</strong> ${rUser}</p>
+          <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPass}</p>
+        </div>
+        <div style="text-align: center; margin: 35px 0;"><a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Login & Complete Form</a></div>
+        <p>Thank you for your time and cooperation.</p>
+        <p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>
+      </div>
+      <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;"><p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p></div>
+    </div>
+  `;
   document.getElementById('previewBody').innerHTML = previewHtml;
 }
 
 async function sendDynamicEmail() {
-  let sel = document.getElementById('assignSelect');
-  let opt = sel.options[sel.selectedIndex];
+  let sel = document.getElementById('assignSelect'); let opt = sel.options[sel.selectedIndex];
   if(!opt.value) return showModal("Error", "Please select a referee first.");
-  
-  let assignId = opt.value;
-  let rName = opt.getAttribute('data-name');
-  let cName = opt.getAttribute('data-cand');
-  let rEmail = opt.getAttribute('data-email');
-  let rUser = opt.getAttribute('data-user');
+  let assignId = opt.value; let rName = opt.getAttribute('data-name'); let cName = opt.getAttribute('data-cand'); let rEmail = opt.getAttribute('data-email'); let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
-  
-  // Get the password again to ensure we have the latest
   const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
   showModal("Sending...", "<p>Please wait while we generate and send the email...</p>");
 
-  // 🔥 FIX: Construct the settings object exactly as the backend expects it
   const emailSettings = {
-    to: rEmail,
-    replyTo: defaultSettings.reply,
-    bcc: defaultSettings.bcc,
-    subject: "ISD Reference Request for " + cName,
-    body: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #004C45; padding: 20px 30px; color: white;">
-          <h2 style="margin:0;">Reference Checking Management System</h2>
-        </div>
-        <div style="padding: 30px; color: #333; line-height: 1.6;">
-          <h3 style="color: #004C45; margin-top: 0;">Dear ${rName},</h3>
-          <p>Warm Greetings from International School Dhaka.</p>
-          <p>My name is Tahnia Ahmed, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted.</p>
-          <p><strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>
-          <p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>
-          <p>Thank you in advance for your time and support.</p>
-          <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
-            <p style="margin: 5px 0;"><strong>Username:</strong> ${rUser}</p>
-            <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPass}</p>
-          </div>
-
-          <div style="text-align: center; margin: 35px 0;">
-            <a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
-              Login & Complete Form
-            </a>
-          </div>
-          <p>Thank you for your time and cooperation.</p>
-          <p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>
-        </div>
-        <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;">
-          <p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p>
-        </div>
-      </div>
-    `
+    to: rEmail, replyTo: defaultSettings.reply, bcc: defaultSettings.bcc, subject: "ISD Reference Request for " + cName,
+    body: '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">' +
+          '<div style="background-color: #004C45; padding: 20px 30px; color: white;"><h2 style="margin:0;">Reference Checking Management System</h2></div>' +
+          '<div style="padding: 30px; color: #333; line-height: 1.6;">' +
+          '<h3 style="color: #004C45; margin-top: 0;">Dear ' + rName + ',</h3>' +
+          '<p>We hope this message finds you well. International School Dhaka is currently in the process of reviewing candidates for an open position, and we are reaching out to you as a professional reference for <strong>' + cName + '</strong>.</p>' +
+          '<p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>' +
+          '<div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">' +
+          '<p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>' +
+          '<p style="margin: 5px 0;"><strong>Username:</strong> ' + rUser + '</p>' +
+          '<p style="margin: 5px 0;"><strong>Password:</strong> ' + tempPass + '</p>' +
+          '</div>' +
+          '<div style="text-align: center; margin: 35px 0;"><a href="' + formLink + '" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Login & Complete Form</a></div>' +
+          '<p>Thank you for your time and cooperation.</p>' +
+          '<p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>' +
+          '</div>' +
+          '<div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;"><p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p></div></div>'
   };
 
-  // 🔥 Send using the exact object structure
   const res = await apiCall('sendEmail', { settings: emailSettings });
   
   if(res.success) {
     await apiCall('markAssignmentAsSent', { assignmentId: assignId });
-    showModal("Email Sent Successfully", "The email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
+    showModal("Email Sent Successfully", "The beautiful email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
     loadSendEmailPage(); 
-  } else {
-    showModal("Error", res.message);
-  }
+  } else { showModal("Error", res.message); }
 }
 
 // --- REFEREE VIEW ---
@@ -884,24 +836,13 @@ async function saveUserDetails(username) {
   const newRole = document.getElementById('editRoleInput').value;
   const newExpiry = document.getElementById('editExpiryInput').value;
   if(!newName) return showModal("Error", "Staff Name cannot be empty.");
-  
   const res = await apiCall('updateUserDetails', { username: username, newStaffName: newName, newRole: newRole, newExpiry: newExpiry });
-  
-  if(res.success) {
-    closeModal();
-    showModal("Success", res.message);
-    // 🔥 FIX: Refresh the correct table based on the current page
-    if(document.getElementById('userManagementTable')) loadUserManagementTable();
-    if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
-  } else {
-    showModal("Error", res.message);
-  }
+  if(res.success) { closeModal(); showModal("Success", res.message); loadUserManagementTable(); } else { showModal("Error", res.message); }
 }
 
 async function toggleUser(username) {
   const res = await apiCall('toggleUserStatus', { username: username });
   showModal("Status Updated", res.message);
-  // 🔥 FIX: Refresh the correct table based on the current page
   if(document.getElementById('userManagementTable')) loadUserManagementTable();
   if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
 }
@@ -916,9 +857,7 @@ async function deleteSystemUser(username) {
   if(!confirm("Are you sure you want to permanently delete " + username + "? This cannot be undone.")) return;
   const res = await apiCall('deleteUser', { username: username });
   showModal("User Deleted", res.message);
-  // 🔥 FIX: Refresh the correct table based on the current page
-  if(document.getElementById('userManagementTable')) loadUserManagementTable();
-  if(document.getElementById('refereeManagementTable')) loadRefereeManagementTable();
+  loadUserManagementTable();
 }
 
 function togglePerms() { document.getElementById('permSection').style.display = document.getElementById('newRole').value === 'Referee' ? 'none' : 'block'; }
