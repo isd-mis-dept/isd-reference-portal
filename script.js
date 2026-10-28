@@ -588,6 +588,7 @@ async function populateEmailFields() {
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
   // 🔥 UPDATED PREVIEW TEMPLATE
+    // 🔥 UPDATED PREVIEW TEMPLATE WITH SALUTATION
   let previewHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
       <div style="background-color: #004C45; padding: 20px 30px; color: white;">
@@ -595,13 +596,14 @@ async function populateEmailFields() {
       </div>
       <div style="padding: 30px; color: #333; line-height: 1.6;">
         
-        <!-- NEW INNER TEXT STARTS HERE -->
+        <!-- 🔥 SALUTATION ADDED HERE -->
+        <p>Dear <strong>${rName}</strong>,</p>
+
         <p>Warm Greetings from International School Dhaka.</p>
         <p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted.</p>
         <p><strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>
         <p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>
         <p>Thank you in advance for your time and support.</p>
-        <!-- NEW INNER TEXT ENDS HERE -->
         
         <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
           <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
