@@ -42,14 +42,15 @@
           </div>
         </div>
         
-        <!-- Custom Math Captcha -->
+                <!-- Custom Math Captcha -->
         <div class="input-group" style="background:#f9f9f9; padding:10px; border-radius:5px; border:1px solid #eee;">
           <label style="color:var(--isd-teal);"><strong>Security Check</strong></label>
           <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
-            <span id="captchaQuestion" style="font-weight:bold; font-size:16px; min-width:60px;"></span>
+            <!-- 🔥 This span is where the question appears -->
+            <span id="captchaQuestion" style="font-weight:bold; font-size:16px; min-width:60px; color:var(--isd-teal);"></span>
             <input type="number" id="captchaInput" required placeholder="Answer" style="flex:1;">
           </div>
-          <small id="captchaError" style="color:red; display:none; margin-top:5px;">Incorrect answer. Please try again.</small>
+          <small id="captchaError" style="color:red; display:none; margin-top:5px;">Incorrect answer. Please try again.  </small>
         </div>
 
         <button type="submit" id="loginBtn" class="btn btn-primary">Login</button>
