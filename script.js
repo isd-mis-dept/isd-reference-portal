@@ -569,10 +569,17 @@ async function loadSendEmailPage() {
 }
 
 async function populateEmailFields() {
-  let sel = document.getElementById('assignSelect'); let opt = sel.options[sel.selectedIndex];
+  let sel = document.getElementById('assignSelect');
+  let opt = sel.options[sel.selectedIndex];
   if(!opt.value) return;
-  let rName = opt.getAttribute('data-name'); let cName = opt.getAttribute('data-cand'); let rEmail = opt.getAttribute('data-email'); let rUser = opt.getAttribute('data-user'); let assignId = opt.value;
+  
+  let rName = opt.getAttribute('data-name');
+  let cName = opt.getAttribute('data-cand');
+  let rEmail = opt.getAttribute('data-email');
+  let rUser = opt.getAttribute('data-user');
+  let assignId = opt.value;
   let formLink = defaultSettings.loginUrl || window.location.href;
+  
   const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
@@ -580,23 +587,39 @@ async function populateEmailFields() {
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
+  // 🔥 UPDATED PREVIEW TEMPLATE
   let previewHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-      <div style="background-color: #004C45; padding: 20px 30px; color: white;"><h2 style="margin:0;">Reference Checking Management System</h2></div>
+      <div style="background-color: #004C45; padding: 20px 30px; color: white;">
+        <h2 style="margin:0;">Reference Checking Management System</h2>
+      </div>
       <div style="padding: 30px; color: #333; line-height: 1.6;">
-        <h3 style="color: #004C45; margin-top: 0;">Dear ${rName},</h3>
-        <p>We hope this message finds you well. International School Dhaka is currently in the process of reviewing candidates for an open position, and we are reaching out to you as a professional reference for <strong>${cName}</strong>.</p>
-        <p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>
+        
+        <!-- NEW INNER TEXT STARTS HERE -->
+        <p>Warm Greetings from International School Dhaka.</p>
+        <p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted.</p>
+        <p><strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>
+        <p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>
+        <p>Thank you in advance for your time and support.</p>
+        <!-- NEW INNER TEXT ENDS HERE -->
+        
         <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
           <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
           <p style="margin: 5px 0;"><strong>Username:</strong> ${rUser}</p>
           <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPass}</p>
         </div>
-        <div style="text-align: center; margin: 35px 0;"><a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Login & Complete Form</a></div>
+
+        <div style="text-align: center; margin: 35px 0;">
+          <a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
+            Login & Complete Form
+          </a>
+        </div>
         <p>Thank you for your time and cooperation.</p>
         <p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>
       </div>
-      <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;"><p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p></div>
+      <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;">
+        <p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p>
+      </div>
     </div>
   `;
   document.getElementById('previewBody').innerHTML = previewHtml;
