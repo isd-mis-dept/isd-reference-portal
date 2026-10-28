@@ -6,17 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#004C45">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ISD RCP">
   
   <title>ISD Reference Checking System</title>
   <link rel="stylesheet" href="style.css">
-  <!-- 🔥 NEW: Chart.js Library for beautiful analytics -->
+  
+  <!-- 🔥 Chart.js Library for beautiful analytics -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json">
   
-  <!-- Direct App Icons from your link -->
+  <!-- Direct App Icons -->
   <link rel="icon" type="image/png" href="https://7d3e463591.imgdist.com/pub/bfra/ppyb5a2u/4zn/uqc/ecp/isd-512x512.png">
   <link rel="apple-touch-icon" href="https://7d3e463591.imgdist.com/pub/bfra/ppyb5a2u/4zn/uqc/ecp/isd-512x512.png">
   
@@ -27,7 +30,6 @@
   <div id="loginScreen" class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <!-- We can also use the direct link for the login screen logo as a fallback -->
         <img id="loginLogo" src="https://7d3e463591.imgdist.com/pub/bfra/ppyb5a2u/4zn/uqc/ecp/isd-512x512.png" alt="ISD Logo" style="max-height: 90px; display: block; margin: 0 auto 15px auto;">
         <h2>ISD Reference Checking System</h2>
         <p>Please log in to continue</p>
@@ -42,15 +44,14 @@
           </div>
         </div>
         
-                <!-- Custom Math Captcha -->
+        <!-- Custom Math Captcha -->
         <div class="input-group" style="background:#f9f9f9; padding:10px; border-radius:5px; border:1px solid #eee;">
           <label style="color:var(--isd-teal);"><strong>Security Check</strong></label>
           <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
-            <!-- 🔥 This span is where the question appears -->
             <span id="captchaQuestion" style="font-weight:bold; font-size:16px; min-width:60px; color:var(--isd-teal);"></span>
             <input type="number" id="captchaInput" required placeholder="Answer" style="flex:1;">
           </div>
-          <small id="captchaError" style="color:red; display:none; margin-top:5px;">Incorrect answer. Please try again.  </small>
+          <small id="captchaError" style="color:red; display:none; margin-top:5px;">Incorrect answer. Please try again.</small>
         </div>
 
         <button type="submit" id="loginBtn" class="btn btn-primary">Login</button>
@@ -62,15 +63,12 @@
   </div>
 
   <div id="mainApp" class="app-container" style="display: none;">
-        <nav class="sidebar">
+    <nav class="sidebar">
       <div class="sidebar-brand">ISD Menu</div>
       <a href="javascript:void(0);" id="nav-dashboard" onclick="showModule('dashboard', this, event)">🏠 Dashboard</a>
       <a href="javascript:void(0);" id="nav-sendEmail" onclick="showModule('sendEmail', this, event)">📧 Send Reference</a>
       <a href="javascript:void(0);" id="nav-form" onclick="showModule('form', this, event)">👥 Manage Referees</a>
-      
-      <!-- 🔥 NEW: Candidate Overview Link -->
       <a href="javascript:void(0);" id="nav-candidates" onclick="showModule('candidates', this, event)">📋 Candidate Overview</a>
-      
       <a href="javascript:void(0);" id="nav-admin" style="display:none;" onclick="showModule('admin', this, event)">⚙️ Admin Settings</a>
       <a href="javascript:void(0);" onclick="logout(event)" class="logout-btn">🚪 Logout</a>
     </nav>
