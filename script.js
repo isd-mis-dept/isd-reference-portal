@@ -304,7 +304,7 @@ async function handleLogin(e) {
   
   const res = await apiCall('login', { username: document.getElementById('username').value, password: document.getElementById('password').value });
 
-  if (res.success) {
+    if (res.success) {
     currentUser = res;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'flex';
@@ -326,10 +326,16 @@ async function handleLogin(e) {
       document.getElementById('nav-sendEmail').style.display = perms.includes("SendEmail") ? 'block' : 'none';
       document.getElementById('nav-form').style.display = perms.includes("ManageReferees") ? 'block' : 'none';
       document.getElementById('nav-admin').style.display = (res.role === 'Admin' || perms.includes("Admin")) ? 'block' : 'none';
-      document.getElementById('nav-candidates').style.display = perms.includes("CandidateOverview") ? 'block' : 'none';
+      
+      // 🔥 FIX: Allow Candidate Overview if they have CandidateOverview permission OR ManageReferees permission
+      const canSeeOverview = perms.includes("CandidateOverview") || perms.includes("ManageReferees") || res.role === 'Admin';
+      document.getElementById('nav-candidates').style.display = canSeeOverview ? 'block' : 'none';
+      
       showModule('dashboard', document.getElementById('nav-dashboard'));
     }
-  } else {
+  }
+      
+  else {
     showModal("Login Failed", res.message); btn.innerText = "Login"; btn.disabled = false; generateCaptcha(); 
   }
 }
