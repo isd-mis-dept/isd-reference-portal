@@ -600,9 +600,11 @@ async function populateEmailFields() {
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
-  let previewHtml = "<p>Dear <b>" + rName + "</b>,</p>";
-  previewHtml += "<p>We hope this message finds you well. International School Dhaka is currently reviewing candidates and we are reaching out to you as a professional reference for <b>" + cName + "</b>.</p>";
-  previewHtml += "<p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>";
+  let previewHtml = "<p>Dear <b>" + rName + "</b>,</p>";<br>
+  previewHtml += "<p>Warm Greetings from International School Dhaka.</p>";<br>
+  previewHtml += "<p>My name is Tahnia Ahmed, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted <strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>";<br>
+  previewHtml += "<p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>"; <br>
+  previewHtml += "<p>Thank you in advance for your time and support.</p>";
   previewHtml += "<div style='background-color:#f4f7f6; padding:15px; border-left:4px solid #FF5C35; border-radius:4px; margin:20px 0;'>";
   previewHtml += "<p style='margin:5px 0;'><strong>Your Login Username:</strong> " + rUser + "</p>";
   previewHtml += "<p style='margin:5px 0;'><strong>Your Password:</strong> " + tempPass + "</p>";
@@ -645,7 +647,7 @@ async function sendDynamicEmail() {
         <div style="padding: 30px; color: #333; line-height: 1.6;">
           <h3 style="color: #004C45; margin-top: 0;">Dear ${rName},</h3>
           <p>Warm Greetings from International School Dhaka.</p>
-          <p>My name is Tahnia Ahmed, HR Manager,  at International School Dhaka. We are in the process of hiring a Position and<strong>${cName}</strong> has been shortlisted.</p>
+          <p>My name is Tahnia Ahmed, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted.</p>
           <p><strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>
           <p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>
           <p>Thank you in advance for your time and support.</p>
