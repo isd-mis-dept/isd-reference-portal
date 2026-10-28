@@ -125,6 +125,9 @@ async function showPDFModal(assignmentId, candidateName) {
   const data = res.data;
   let tableRows = "";
   const labels = {
+    "childSafetyConcerns": "Concerns About Behaviour Around Children?",
+    "childSafetyDetails": "Details of Concerns", // 🔥 NEW LABEL
+    "greatestStrengths": "Greatest Strengths", 
     "supervisorPosition": "Supervisor's Position", "workDuration": "Worked Together For", "schoolName": "School/Organization Name",
     "childSafetyConcerns": "Concerns About Behaviour Around Children?", "greatestStrengths": "Greatest Strengths", "areasForDevelopment": "Areas for Development",
     "reactionToDislike": "Reaction to Unliked Decision (1-10)", "reactionToCriticism": "Reaction to Constructive Criticism (1-10)", "moraleInfluence": "Influence on School Morale (1-10)",
@@ -716,7 +719,16 @@ async function loadRefForm(candName, refUser) {
   html += '<div class="input-group"><label>During your time supervising this candidate, what was YOUR position and/or title? *</label><input type="text" name="supervisorPosition" required></div>';
   html += '<div class="input-group"><label>How long did you work together with this candidate? *</label><input type="text" name="workDuration" required></div>';
   html += '<div class="input-group"><label>What is the name of the school/organization where you supervised this candidate? *</label><input type="text" name="schoolName" required></div>';
-  html += '<div class="input-group"><label>Do you have any concerns about this candidate\'s behaviour around children, or working unattended with children? *</label><select name="childSafetyConcerns" required><option value="No">No</option><option value="Yes">Yes</option></select></div>';
+    // Inside loadRefForm
+  html += '<div class="input-group"><label>Do you have any concerns about this candidate\'s behaviour around children, or working unattended with children? *</label>';
+  html += '<select name="childSafetyConcerns" id="childSafetySelect" onchange="toggleSafetyDetails()" required>';
+  html += '<option value="No">No</option><option value="Yes">Yes</option></select></div>';
+  
+  // 🔥 NEW: Hidden text box that will show if 'Yes' is selected
+  html += '<div class="input-group" id="safetyDetailsDiv" style="display:none; background:#fff3cd; padding:15px; border-radius:5px; border:1px solid #ffeeba; margin-top:-10px; margin-bottom:15px;">';
+  html += '<label style="color:#856404;"><strong>Please provide details of your concerns: *</strong></label>';
+  html += '<textarea name="childSafetyDetails" id="childSafetyDetails" rows="3" style="border-color:#ffeeba;"></textarea>';
+  html += '</div>';
 
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 2: General Assessment</h4>';
   html += '<div class="input-group"><label>What are this candidate\'s greatest strengths? *</label><textarea name="greatestStrengths" rows="3" required></textarea></div>';
@@ -755,6 +767,22 @@ async function loadRefForm(candName, refUser) {
   html += '<div class="input-group"><label>Lastly, if necessary, would you be willing to participate in a 5 minute telephone call as part of our safer recruitment process? *</label><select name="phoneCallWilling" required><option value="Yes">Yes</option><option value="No">No</option></select></div>';
   html += '<button type="submit" class="btn btn-primary" style="margin-top:20px;">Submit & Lock Form</button></form></div>';
   document.getElementById('activeFormContainer').innerHTML = html;
+}
+
+// 🔥 NEW: Function to show/hide the text box based on selection
+function toggleSafetyDetails() {
+  const select = document.getElementById('childSafetySelect');
+  const detailsDiv = document.getElementById('safetyDetailsDiv');
+  const detailsInput = document.getElementById('childSafetyDetails');
+  
+  if (select.value === 'Yes') {
+    detailsDiv.style.display = 'block';
+    detailsInput.required = true; // Make it mandatory if they select Yes
+  } else {
+    detailsDiv.style.display = 'none';
+    detailsInput.required = false;
+    detailsInput.value = ''; // Clear the text if they change back to No
+  }
 }
 
 function confirmSubmission(e, assignId, candName) {
