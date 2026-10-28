@@ -614,21 +614,70 @@ async function populateEmailFields() {
 }
 
 async function sendDynamicEmail() {
-  let sel = document.getElementById('assignSelect'); let opt = sel.options[sel.selectedIndex];
+  let sel = document.getElementById('assignSelect');
+  let opt = sel.options[sel.selectedIndex];
   if(!opt.value) return showModal("Error", "Please select a referee first.");
-  let assignId = opt.value; let rName = opt.getAttribute('data-name'); let cName = opt.getAttribute('data-cand'); let rEmail = opt.getAttribute('data-email'); let rUser = opt.getAttribute('data-user');
+  
+  let assignId = opt.value;
+  let rName = opt.getAttribute('data-name');
+  let cName = opt.getAttribute('data-cand');
+  let rEmail = opt.getAttribute('data-email');
+  let rUser = opt.getAttribute('data-user');
   let formLink = defaultSettings.loginUrl || window.location.href;
+  
+  // Get the password again to ensure we have the latest
   const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
 
   showModal("Sending...", "<p>Please wait while we generate and send the email...</p>");
-  const res = await apiCall('sendEmail', { to: rEmail, refereeName: rName, candidateName: cName, loginId: rUser, password: tempPass, formLink: formLink });
+
+  // 🔥 FIX: Construct the settings object exactly as the backend expects it
+  const emailSettings = {
+    to: rEmail,
+    replyTo: defaultSettings.reply,
+    bcc: defaultSettings.bcc,
+    subject: "ISD Reference Request for " + cName,
+    body: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #004C45; padding: 20px 30px; color: white;">
+          <h2 style="margin:0;">Reference Checking Management System</h2>
+        </div>
+        <div style="padding: 30px; color: #333; line-height: 1.6;">
+          <h3 style="color: #004C45; margin-top: 0;">Dear ${rName},</h3>
+          <p>We hope this message finds you well. International School Dhaka is currently in the process of reviewing candidates for an open position, and we are reaching out to you as a professional reference for <strong>${cName}</strong>.</p>
+          <p>Your insights into their professional strengths and classroom management are invaluable to our selection process. Please take a few moments to complete the confidential reference form linked below.</p>
+          
+          <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
+            <p style="margin: 5px 0;"><strong>Username:</strong> ${rUser}</p>
+            <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPass}</p>
+          </div>
+
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
+              Login & Complete Form
+            </a>
+          </div>
+          <p>Thank you for your time and cooperation.</p>
+          <p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>
+        </div>
+        <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;">
+          <p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p>
+        </div>
+      </div>
+    `
+  };
+
+  // 🔥 Send using the exact object structure
+  const res = await apiCall('sendEmail', { settings: emailSettings });
   
   if(res.success) {
     await apiCall('markAssignmentAsSent', { assignmentId: assignId });
-    showModal("Email Sent Successfully", "The beautiful email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
+    showModal("Email Sent Successfully", "The email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
     loadSendEmailPage(); 
-  } else { showModal("Error", res.message); }
+  } else {
+    showModal("Error", res.message);
+  }
 }
 
 // --- REFEREE VIEW ---
