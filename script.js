@@ -747,7 +747,7 @@ async function sendDynamicEmail() {
   
   if(res.success) {
     await apiCall('markAssignmentAsSent', { assignmentId: assignId });
-    showModal("Email Sent Successfully", "The beautiful email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
+    showModal("Email Sent Successfully", "The email has been sent to <b>" + rName + "</b> for candidate <b>" + cName + "</b>.");
     loadSendEmailPage(); 
   } else { showModal("Error", res.message); }
 }
