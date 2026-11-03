@@ -464,20 +464,87 @@ async function loadAuditLogs() {
 async function loadCandidateOverview() {
   const all = await apiCall('getAllAssignments');
   if(!all) return;
+
   let tHtml = '<div class="card"><h2 style="color:var(--isd-teal); margin-bottom:20px;">Candidate Overview</h2>';
-  tHtml += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
-  tHtml += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:12px;">Referee (User)</th><th style="padding:12px;">Referee Official Name</th><th style="padding:12px;">Referee Email</th><th style="padding:12px;">Candidate</th><th style="padding:12px;">Status</th><th style="padding:12px;">Action</th></tr>';
-  if(all.length === 0) { tHtml += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No candidates found in the system.</td></tr>'; }
-  else {
+  
+  // 🔥 NEW: Filter Area
+  tHtml += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:20px; background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">';
+  
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Referee Name</label><input type="text" id="filterRefName" placeholder="Enter Referee Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Candidate Name</label><input type="text" id="filterCandName" placeholder="Enter Candidate Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
+  
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Status</label><select id="filterStatus" onchange="filterCandidateTable()" style="padding:8px;">';
+  tHtml += '<option value="">All Statuses</option>';
+  tHtml += '<option value="Pending">Pending</option>';
+  tHtml += '<option value="Sent">Email Sent</option>';
+  tHtml += '<option value="Submitted">Submitted</option>';
+  tHtml += '</select></div>';
+  
+  tHtml += '</div>'; // End Filter Area
+
+  // Table
+  tHtml += '<div style="overflow-x:auto;"><table id="candidateTable" style="width:100%; border-collapse:collapse; font-size:14px;">';
+  tHtml += '<thead><tr style="background:var(--isd-teal); color:white; text-align:left;">';
+  tHtml += '<th style="padding:12px;">Referee (User)</th>';
+  tHtml += '<th style="padding:12px;">Referee Official Name</th>';
+  tHtml += '<th style="padding:12px;">Referee Email</th>';
+  tHtml += '<th style="padding:12px;">Candidate</th>';
+  tHtml += '<th style="padding:12px;">Status</th>';
+  tHtml += '<th style="padding:12px;">Action</th>';
+  tHtml += '</tr></thead><tbody>';
+  
+  if(all.length === 0) {
+    tHtml += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No candidates found in the system.</td></tr>';
+  } else {
     all.forEach(c => {
-      let statusColor = "#777"; if (c.status === 'Submitted') statusColor = '#38D430'; else if (c.status === 'Sent') statusColor = '#004C45'; else if (c.status === 'Pending') statusColor = '#FFDA00';
-      tHtml += '<tr style="border-bottom:1px solid #eee;"><td style="padding:12px;">' + c.username + '</td><td style="padding:12px;">' + c.officialName + '</td><td style="padding:12px;">' + c.email + '</td><td style="padding:12px; font-weight:bold;">' + c.candidate + '</td><td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td><td style="padding:12px;">';
-      if (c.status === 'Submitted') { tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>'; } else { tHtml += '<span style="color:#ccc; font-size:12px;">Awaiting Action</span>'; }
+      let statusColor = "#777";
+      if (c.status === 'Submitted') statusColor = '#38D430';
+      else if (c.status === 'Sent') statusColor = '#004C45';
+      else if (c.status === 'Pending') statusColor = '#FFDA00';
+
+      tHtml += `<tr class="candidate-row" data-refname="${c.officialName.toLowerCase()}" data-candname="${c.candidate.toLowerCase()}" data-status="${c.status}" style="border-bottom:1px solid #eee;">`;
+      tHtml += '<td style="padding:12px;">' + c.username + '</td>';
+      tHtml += '<td style="padding:12px;">' + c.officialName + '</td>';
+      tHtml += '<td style="padding:12px;">' + c.email + '</td>';
+      tHtml += '<td style="padding:12px; font-weight:bold;">' + c.candidate + '</td>';
+      tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
+      tHtml += '<td style="padding:12px;">';
+      if (c.status === 'Submitted') {
+        tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
+      } else {
+        tHtml += '<span style="color:#ccc; font-size:12px;">Awaiting Action</span>';
+      }
       tHtml += '</td></tr>';
     });
   }
-  tHtml += '</table></div></div>';
+  
+  tHtml += '</tbody></table></div></div>';
   document.getElementById('contentArea').innerHTML = tHtml;
+}
+
+// 🔥 NEW: Function to filter the table
+function filterCandidateTable() {
+  const refFilter = document.getElementById('filterRefName').value.toLowerCase();
+  const candFilter = document.getElementById('filterCandName').value.toLowerCase();
+  const statusFilter = document.getElementById('filterStatus').value;
+  
+  const rows = document.querySelectorAll('.candidate-row');
+  
+  rows.forEach(row => {
+    const refName = row.getAttribute('data-refname');
+    const candName = row.getAttribute('data-candname');
+    const status = row.getAttribute('data-status');
+    
+    const matchesRef = refName.includes(refFilter);
+    const matchesCand = candName.includes(candFilter);
+    const matchesStatus = statusFilter === "" || status === statusFilter;
+    
+    if (matchesRef && matchesCand && matchesStatus) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
 }
 
 // --- MANAGE REFEREES MODULE ---
