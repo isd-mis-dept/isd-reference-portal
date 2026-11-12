@@ -117,18 +117,16 @@ async function showDashboardTable(type) {
   document.getElementById('customModal').style.display = 'flex';
 }
 
-async function showPDFModal(assignmentId, candidateName) {
+// 🔥 FIX: Added 'officialName' as a parameter
+async function showPDFModal(assignmentId, candidateName, officialName) {
   showModal("Loading...", "<p>Fetching reference data...</p>");
   const res = await apiCall('getSubmissionData', { assignmentId: assignmentId });
   if (!res.success) { showModal("Error", res.message); return; }
   
   const data = res.data;
   let tableRows = "";
+  
   const labels = {
-    "childSafetyConcerns": "Concerns About Behaviour Around Children?",
-    "childSafetyDetails": "Details of Concerns", // 🔥 NEW LABEL
-    "greatestStrengths": "Greatest Strengths",
-    "refereeContact": "Referee Contact Number",
     "supervisorPosition": "Supervisor's Position", "workDuration": "Worked Together For", "schoolName": "School/Organization Name",
     "childSafetyConcerns": "Concerns About Behaviour Around Children?", "greatestStrengths": "Greatest Strengths", "areasForDevelopment": "Areas for Development",
     "reactionToDislike": "Reaction to Unliked Decision (1-10)", "reactionToCriticism": "Reaction to Constructive Criticism (1-10)", "moraleInfluence": "Influence on School Morale (1-10)",
@@ -143,7 +141,7 @@ async function showPDFModal(assignmentId, candidateName) {
   };
 
   for (let key in data) {
-    if (key !== 'candidateName' && key !== 'refereeName' && key !== 'assignmentId') {
+    if (key !== 'candidateName' && key !== 'refereeName' && key !== 'assignmentId' && key !== 'timestamp' && key !== 'refereeContact') {
       let displayLabel = labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
       let value = data[key] || 'N/A';
       tableRows += `<tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold; font-size:13px;">${displayLabel}</td><td style="padding:10px; border:1px solid #ddd; font-size:13px;">${value}</td></tr>`;
@@ -159,7 +157,10 @@ async function showPDFModal(assignmentId, candidateName) {
       </div>
       <h3 style="text-align:center; color:#FF5C35; margin-bottom:20px;">Comprehensive Reference Report</h3>
       <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
-        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Referee Name</td><td style="padding:10px; border:1px solid #ddd;">${data.refereeName}</td></tr>
+        
+        <!-- 🔥 FIX: Use officialName if provided, otherwise fallback to JSON refereeName -->
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Referee Name</td><td style="padding:10px; border:1px solid #ddd;">${officialName || data.refereeName}</td></tr>
+        <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Referee Contact</td><td style="padding:10px; border:1px solid #ddd;">${data.refereeContact || 'N/A'}</td></tr>
         <tr><td style="padding:10px; border:1px solid #ddd; background:#f4f4f4; width:40%; font-weight:bold;">Candidate Name</td><td style="padding:10px; border:1px solid #ddd;">${data.candidateName}</td></tr>
         ${tableRows}
       </table>
@@ -533,7 +534,7 @@ async function loadCandidateOverview() {
       tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
       tHtml += '<td style="padding:12px;">';
       if (c.status === 'Submitted') {
-        tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
+        tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\', \'' + c.officialName + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
       } else {
         tHtml += '<span style="color:#ccc; font-size:12px;">Awaiting Action</span>';
       }
