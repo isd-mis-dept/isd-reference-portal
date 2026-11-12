@@ -127,7 +127,8 @@ async function showPDFModal(assignmentId, candidateName) {
   const labels = {
     "childSafetyConcerns": "Concerns About Behaviour Around Children?",
     "childSafetyDetails": "Details of Concerns", // 🔥 NEW LABEL
-    "greatestStrengths": "Greatest Strengths", 
+    "greatestStrengths": "Greatest Strengths",
+    "refereeContact": "Referee Contact Number",
     "supervisorPosition": "Supervisor's Position", "workDuration": "Worked Together For", "schoolName": "School/Organization Name",
     "childSafetyConcerns": "Concerns About Behaviour Around Children?", "greatestStrengths": "Greatest Strengths", "areasForDevelopment": "Areas for Development",
     "reactionToDislike": "Reaction to Unliked Decision (1-10)", "reactionToCriticism": "Reaction to Constructive Criticism (1-10)", "moraleInfluence": "Influence on School Morale (1-10)",
@@ -467,34 +468,28 @@ async function loadCandidateOverview() {
 
   let tHtml = '<div class="card"><h2 style="color:var(--isd-teal); margin-bottom:20px;">Candidate Overview</h2>';
   
-  // 🔥 NEW: Filter Area
+  // Filter Area
   tHtml += '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:20px; background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">';
-  
-  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Referee Name</label><input type="text" id="filterRefName" placeholder="Enter Referee Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
-  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Candidate Name</label><input type="text" id="filterCandName" placeholder="Enter Candidate Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
-  
-  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Status</label><select id="filterStatus" onchange="filterCandidateTable()" style="padding:8px;">';
-  tHtml += '<option value="">All Statuses</option>';
-  tHtml += '<option value="Pending">Pending</option>';
-  tHtml += '<option value="Sent">Email Sent</option>';
-  tHtml += '<option value="Submitted">Submitted</option>';
-  tHtml += '</select></div>';
-  
-  tHtml += '</div>'; // End Filter Area
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Referee</label><input type="text" id="filterRefName" placeholder="Enter Referee Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Candidate</label><input type="text" id="filterCandName" placeholder="Enter Candidate Name..." onkeyup="filterCandidateTable()" style="padding:8px;"></div>';
+  tHtml += '<div class="input-group" style="margin:0;"><label>Filter by Status</label><select id="filterStatus" onchange="filterCandidateTable()" style="padding:8px;"><option value="">All Statuses</option><option value="Pending">Pending</option><option value="Sent">Email Sent</option><option value="Submitted">Submitted</option></select></div>';
+  tHtml += '</div>'; 
 
   // Table
-  tHtml += '<div style="overflow-x:auto;"><table id="candidateTable" style="width:100%; border-collapse:collapse; font-size:14px;">';
+  tHtml += '<div style="overflow-x:auto;"><table id="candidateTable" style="width:100%; border-collapse:collapse; font-size:14px; min-width: 1000px;">';
   tHtml += '<thead><tr style="background:var(--isd-teal); color:white; text-align:left;">';
-  tHtml += '<th style="padding:12px;">Referee (User)</th>';
-  tHtml += '<th style="padding:12px;">Referee Official Name</th>';
-  tHtml += '<th style="padding:12px;">Referee Email</th>';
+  tHtml += '<th style="padding:12px;">Referee (Official Name)</th>'; // 🔥 Changed Label
+  tHtml += '<th style="padding:12px;">Position</th>'; // 🔥 NEW COLUMN
   tHtml += '<th style="padding:12px;">Candidate</th>';
+  tHtml += '<th style="padding:12px;">Referee Email</th>';
+  tHtml += '<th style="padding:12px;">Request Sent Time</th>'; // 🔥 NEW COLUMN
+  tHtml += '<th style="padding:12px;">Submission Received Time</th>'; // 🔥 NEW COLUMN
   tHtml += '<th style="padding:12px;">Status</th>';
   tHtml += '<th style="padding:12px;">Action</th>';
   tHtml += '</tr></thead><tbody>';
   
   if(all.length === 0) {
-    tHtml += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No candidates found in the system.</td></tr>';
+    tHtml += '<tr><td colspan="8" style="padding:20px; text-align:center; color:#777;">No candidates found.</td></tr>';
   } else {
     all.forEach(c => {
       let statusColor = "#777";
@@ -502,11 +497,21 @@ async function loadCandidateOverview() {
       else if (c.status === 'Sent') statusColor = '#004C45';
       else if (c.status === 'Pending') statusColor = '#FFDA00';
 
+      // Formatting timestamps
+      let sentTimeDisplay = "N/A";
+      if (c.emailSentTime && c.emailSentTime !== "N/A") {
+        try { sentTimeDisplay = new Date(c.emailSentTime).toLocaleString(); } catch(e) {}
+      }
+
+      let submitTimeDisplay = c.submitTime || "N/A";
+
       tHtml += `<tr class="candidate-row" data-refname="${c.officialName.toLowerCase()}" data-candname="${c.candidate.toLowerCase()}" data-status="${c.status}" style="border-bottom:1px solid #eee;">`;
-      tHtml += '<td style="padding:12px;">' + c.username + '</td>';
-      tHtml += '<td style="padding:12px;">' + c.officialName + '</td>';
-      tHtml += '<td style="padding:12px;">' + c.email + '</td>';
+      tHtml += '<td style="padding:12px; font-weight:bold;">' + c.officialName + '</td>'; // 🔥 Official Name
+      tHtml += '<td style="padding:12px;">' + c.position + '</td>'; // 🔥 Position
       tHtml += '<td style="padding:12px; font-weight:bold;">' + c.candidate + '</td>';
+      tHtml += '<td style="padding:12px;">' + c.email + '</td>';
+      tHtml += '<td style="padding:12px;">' + sentTimeDisplay + '</td>'; // 🔥 Request Sent Time
+      tHtml += '<td style="padding:12px;">' + submitTimeDisplay + '</td>'; // 🔥 Submission Time
       tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
       tHtml += '<td style="padding:12px;">';
       if (c.status === 'Submitted') {
@@ -554,31 +559,43 @@ async function loadManageRefereesPage() {
   html += '<div class="form-row"><div class="input-group"><label>Referee Username (System Login)</label><input type="text" id="refUser"></div>';
   html += '<div class="input-group"><label>Referee Official Name</label><input type="text" id="refNameOfficial"></div></div>';
   html += '<div class="input-group"><label>Referee Email</label><input type="email" id="refEmail"></div>';
+  
   html += '<div style="background:#f9f9f9; padding:15px; border-radius:5px; border:1px solid #eee; margin-bottom:15px;">';
-  html += '<h4 style="margin-top:0; color:var(--isd-teal);">Candidates</h4>';
-  html += '<div style="display:flex; gap:10px; margin-bottom:10px;"><input type="text" id="candInput" placeholder="Candidate Full Name" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:4px;">';
-  html += '<button onclick="addCandidateToList()" class="btn btn-primary" style="width:auto; background-color:var(--isd-teal);">+ Add Candidate</button></div>';
-  html += '<table style="width:100%; border-collapse:collapse; font-size:14px;" id="candTable"><tr style="background:#eee; text-align:left;"><th style="padding:8px;">Candidate Name</th><th style="padding:8px; width:50px;">Action</th></tr></table></div>';
+  html += '<h4 style="margin-top:0; color:var(--isd-teal);">Add Candidates</h4>';
+  
+  // 🔥 NEW: Added Position Field
+  html += '<div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; margin-bottom:10px;">';
+  html += '<input type="text" id="candInput" placeholder="Candidate Full Name" style="padding:10px; border:1px solid #ccc; border-radius:4px;">';
+  html += '<input type="text" id="candPosition" placeholder="Position (e.g. Math Teacher)" style="padding:10px; border:1px solid #ccc; border-radius:4px;">';
+  html += '<button onclick="addCandidateToList()" class="btn btn-primary" style="background-color:var(--isd-teal);">+ Add</button>';
+  html += '</div>';
+  
+  html += '<table style="width:100%; border-collapse:collapse; font-size:14px;" id="candTable"><tr style="background:#eee; text-align:left;"><th style="padding:8px;">Candidate Name</th><th style="padding:8px;">Position</th><th style="padding:8px; width:50px;">Action</th></tr></table></div>';
   html += '<button onclick="saveRefereeAssignment()" class="btn btn-primary">Add Referee and Candidate(s)</button></div>';
   
-  // 🔥 Referee User Management Section
-  html += '<div class="card"><h3>Referee User Management</h3>';
-  html += '<div id="refereeManagementTable">Loading users...</div></div>';
-  
+  html += '<div class="card"><h3>Referee User Management</h3><div id="refereeManagementTable">Loading users...</div></div>';
   document.getElementById('contentArea').innerHTML = html;
   loadRefereeManagementTable();
 }
 
 function addCandidateToList() {
-  let val = document.getElementById('candInput').value.trim();
-  if(!val) return;
-  dynamicCandidates.push(val);
+  let name = document.getElementById('candInput').value.trim();
+  let position = document.getElementById('candPosition').value.trim();
+  
+  if(!name || !position) return showModal("Error", "Please enter both Candidate Name and Position.");
+  
+  dynamicCandidates.push({ name: name, position: position });
+  
   document.getElementById('candInput').value = '';
+  document.getElementById('candPosition').value = '';
+  
   let table = document.getElementById('candTable');
   let row = table.insertRow(-1);
-  let cell1 = row.insertCell(0); cell1.innerText = val;
-  let cell2 = row.insertCell(1);
-  cell2.innerHTML = '<button onclick="this.parentElement.parentElement.remove();" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button>';
+  let cell1 = row.insertCell(0); cell1.innerText = name;
+  let cell2 = row.insertCell(1); cell2.innerText = position;
+  let cell3 = row.insertCell(2);
+  // Remove specific row from array based on name and position
+  cell3.innerHTML = `<button onclick="this.parentElement.parentElement.remove(); dynamicCandidates = dynamicCandidates.filter(c => c.name !== '${name}' || c.position !== '${position}');" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">X</button>`;
 }
 
 async function saveRefereeAssignment() {
@@ -587,6 +604,7 @@ async function saveRefereeAssignment() {
   let e = document.getElementById('refEmail').value;
   if(!u || !n || !e) return showModal("Error", "Please fill all referee fields.");
   if(dynamicCandidates.length === 0) return showModal("Error", "Please add at least one candidate.");
+  
   const res = await apiCall('createRefereeAssignment', { username: u, officialName: n, email: e, candidates: dynamicCandidates });
   showModal("Success", res.message);
   loadManageRefereesPage(); 
@@ -632,7 +650,13 @@ async function loadSendEmailPage() {
   let html = '<div class="card"><h3>Send Reference Request</h3>';
   html += '<div class="input-group"><label>Select Referee Assignment to Email</label><select id="assignSelect" onchange="populateEmailFields()">';
   html += '<option value="">-- Select a Referee --</option>';
-  if(pending) { pending.forEach(p => { html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '" data-user="' + p.username + '">' + p.officialName + ' (' + p.candidate + ')</option>'; }); }
+    // Inside loadSendEmailPage...
+  if(pending) {
+    pending.forEach(p => {
+      // 🔥 Added data-pos="${p.position}"
+      html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '" data-user="' + p.username + '" data-pos="' + (p.position || 'N/A') + '">' + p.officialName + ' (' + p.candidate + ')</option>';
+    });
+  }
   html += '</select></div>';
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail" readonly></div>';
   html += '<div id="emailPreview" style="display:none; background:white; padding:20px; border:1px solid #ddd; border-radius:8px; margin-bottom:20px;">';
@@ -651,6 +675,7 @@ async function populateEmailFields() {
   
   let rName = opt.getAttribute('data-name');
   let cName = opt.getAttribute('data-cand');
+  let cPos = opt.getAttribute('data-pos'); // 🔥 NEW: Get Position
   let rEmail = opt.getAttribute('data-email');
   let rUser = opt.getAttribute('data-user');
   let assignId = opt.value;
@@ -663,41 +688,29 @@ async function populateEmailFields() {
   document.getElementById('emailPreview').style.display = 'block';
   document.getElementById('previewSubject').innerText = "ISD Reference Request for " + cName;
   
-  // 🔥 UPDATED PREVIEW TEMPLATE
-    // 🔥 UPDATED PREVIEW TEMPLATE WITH SALUTATION
   let previewHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-      <div style="background-color: #004C45; padding: 20px 30px; color: white;">
-        <h2 style="margin:0;">Reference Checking Management System</h2>
-      </div>
+      <div style="background-color: #004C45; padding: 20px 30px; color: white;"><h2 style="margin:0;">Reference Checking Management System</h2></div>
       <div style="padding: 30px; color: #333; line-height: 1.6;">
-        
-        <!-- 🔥 SALUTATION ADDED HERE -->
         <p>Dear <strong>${rName}</strong>,</p>
-
         <p>Warm Greetings from International School Dhaka.</p>
-        <p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring a Position and <strong>${cName}</strong> has been shortlisted.</p>
+        
+        <!-- 🔥 UPDATED LINE WITH POSITION -->
+        <p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring a <strong>${cPos}</strong> and <strong>${cName}</strong> has been shortlisted.</p>
+        
         <p><strong>${cName}</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>${cName}</strong> by completing the online reference form.</p>
         <p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>
         <p>Thank you in advance for your time and support.</p>
-        
         <div style="background-color: #f4f7f6; padding: 20px; border-left: 4px solid #FF5C35; border-radius: 4px; margin: 25px 0;">
           <p style="margin: 0 0 10px 0; font-weight: bold; color: #004C45;">Your Secure Login Credentials:</p>
           <p style="margin: 5px 0;"><strong>Username:</strong> ${rUser}</p>
           <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPass}</p>
         </div>
-
-        <div style="text-align: center; margin: 35px 0;">
-          <a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">
-            Login & Complete Form
-          </a>
-        </div>
+        <div style="text-align: center; margin: 35px 0;"><a href="${formLink}" style="background-color: #38D430; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">Login & Complete Form</a></div>
         <p>Thank you for your time and cooperation.</p>
         <p>Warm regards,<br><strong>ISD HR Team</strong><br>International School Dhaka</p>
       </div>
-      <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;">
-        <p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p>
-      </div>
+      <div style="background-color: #f9f9f9; padding: 20px 30px; font-size: 13px; color: #666; text-align: center; border-top: 1px solid #e0e0e0;"><p style="margin: 0;">This is an automated message from the ISD Reference Checking System.</p></div>
     </div>
   `;
   document.getElementById('previewBody').innerHTML = previewHtml;
@@ -787,7 +800,7 @@ async function loadRefForm(candName, refUser) {
   html += '<form id="refForm" onsubmit="confirmSubmission(event, \'' + assignId + '\', \'' + candName + '\')">';
   html += '<input type="hidden" name="candidateName" value="' + candName + '">';
   html += '<input type="hidden" name="refereeName" value="' + refUser + '">';
-
+  html += '<div class="input-group"><label>Referee Contact Number *</label><input type="tel" name="refereeContact" required placeholder="+country_code 1XXXXXXXXX"></div>';
   html += '<h4 style="color:var(--isd-teal); margin-top:20px;">Section 1: Background Information</h4>';
   html += '<div class="input-group"><label>During your time supervising this candidate, what was YOUR position and/or title? *</label><input type="text" name="supervisorPosition" required></div>';
   html += '<div class="input-group"><label>How long did you work together with this candidate? *</label><input type="text" name="workDuration" required></div>';
