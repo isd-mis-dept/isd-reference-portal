@@ -651,11 +651,11 @@ async function loadSendEmailPage() {
   html += '<div class="input-group"><label>Select Referee Assignment to Email</label><select id="assignSelect" onchange="populateEmailFields()">';
   html += '<option value="">-- Select a Referee --</option>';
     // Inside loadSendEmailPage...
-  if(pending) {
-    pending.forEach(p => {
-      // 🔥 Added data-pos="${p.position}"
-      html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '" data-user="' + p.username + '" data-pos="' + (p.position || 'N/A') + '">' + p.officialName + ' (' + p.candidate + ')</option>';
-    });
+  if(pending) { 
+    pending.forEach(p => { 
+      // 🔥 Make sure data-pos is included
+      html += '<option value="' + p.id + '" data-name="' + p.officialName + '" data-email="' + p.email + '" data-cand="' + p.candidate + '" data-user="' + p.username + '" data-pos="' + (p.position || 'N/A') + '">' + p.officialName + ' (' + p.candidate + ')</option>'; 
+    }); 
   }
   html += '</select></div>';
   html += '<div class="input-group"><label>To Email</label><input type="email" id="toEmail" readonly></div>';
