@@ -634,7 +634,7 @@ async function loadRefereeManagementTable() {
   const referees = users.filter(u => u.role === 'Referee');
   
   let html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:14px;">';
-  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Staff Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Email</th><th style="padding:10px;">Access Expiry</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; 
+  html += '<tr style="background:var(--isd-teal); color:white; text-align:left;"><th style="padding:10px;">Referee Name</th><th style="padding:10px;">Username</th><th style="padding:10px;">Email</th><th style="padding:10px;">Access Expiry</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>'; 
   
   if(referees.length === 0) {
     html += '<tr><td colspan="6" style="padding:20px; text-align:center; color:#777;">No Referees found in the system.</td></tr>';
