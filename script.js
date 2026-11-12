@@ -478,12 +478,12 @@ async function loadCandidateOverview() {
   // Table
   tHtml += '<div style="overflow-x:auto;"><table id="candidateTable" style="width:100%; border-collapse:collapse; font-size:14px; min-width: 1000px;">';
   tHtml += '<thead><tr style="background:var(--isd-teal); color:white; text-align:left;">';
-  tHtml += '<th style="padding:12px;">Referee (Official Name)</th>'; // 🔥 Changed Label
-  tHtml += '<th style="padding:12px;">Position</th>'; // 🔥 NEW COLUMN
+  tHtml += '<th style="padding:12px;">Referee (Official Name)</th>'; 
+  tHtml += '<th style="padding:12px;">Position</th>'; 
   tHtml += '<th style="padding:12px;">Candidate</th>';
   tHtml += '<th style="padding:12px;">Referee Email</th>';
-  tHtml += '<th style="padding:12px;">Request Sent Time</th>'; // 🔥 NEW COLUMN
-  tHtml += '<th style="padding:12px;">Submission Received Time</th>'; // 🔥 NEW COLUMN
+  tHtml += '<th style="padding:12px;">Request Sent Time</th>'; 
+  tHtml += '<th style="padding:12px;">Submission Received Time</th>'; 
   tHtml += '<th style="padding:12px;">Status</th>';
   tHtml += '<th style="padding:12px;">Action</th>';
   tHtml += '</tr></thead><tbody>';
@@ -497,21 +497,39 @@ async function loadCandidateOverview() {
       else if (c.status === 'Sent') statusColor = '#004C45';
       else if (c.status === 'Pending') statusColor = '#FFDA00';
 
-      // Formatting timestamps
+      // 🔥 FIX: Force format both dates in the browser
       let sentTimeDisplay = "N/A";
       if (c.emailSentTime && c.emailSentTime !== "N/A") {
-        try { sentTimeDisplay = new Date(c.emailSentTime).toLocaleString(); } catch(e) {}
+        try {
+          let d = new Date(c.emailSentTime);
+          // Check if the date is valid before formatting
+          if (!isNaN(d.getTime())) {
+            sentTimeDisplay = d.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+          } else {
+            sentTimeDisplay = c.emailSentTime; // Fallback
+          }
+        } catch(e) { sentTimeDisplay = c.emailSentTime; }
       }
 
-      let submitTimeDisplay = c.submitTime || "N/A";
+      let submitTimeDisplay = "N/A";
+      if (c.submitTime && c.submitTime !== "N/A") {
+        try {
+          let d = new Date(c.submitTime);
+          if (!isNaN(d.getTime())) {
+             submitTimeDisplay = d.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+          } else {
+             submitTimeDisplay = c.submitTime;
+          }
+        } catch(e) { submitTimeDisplay = c.submitTime; }
+      }
 
       tHtml += `<tr class="candidate-row" data-refname="${c.officialName.toLowerCase()}" data-candname="${c.candidate.toLowerCase()}" data-status="${c.status}" style="border-bottom:1px solid #eee;">`;
-      tHtml += '<td style="padding:12px; font-weight:bold;">' + c.officialName + '</td>'; // 🔥 Official Name
-      tHtml += '<td style="padding:12px;">' + c.position + '</td>'; // 🔥 Position
+      tHtml += '<td style="padding:12px; font-weight:bold;">' + c.officialName + '</td>'; 
+      tHtml += '<td style="padding:12px;">' + c.position + '</td>'; 
       tHtml += '<td style="padding:12px; font-weight:bold;">' + c.candidate + '</td>';
       tHtml += '<td style="padding:12px;">' + c.email + '</td>';
-      tHtml += '<td style="padding:12px;">' + sentTimeDisplay + '</td>'; // 🔥 Request Sent Time
-      tHtml += '<td style="padding:12px;">' + submitTimeDisplay + '</td>'; // 🔥 Submission Time
+      tHtml += '<td style="padding:12px;">' + sentTimeDisplay + '</td>'; 
+      tHtml += '<td style="padding:12px;">' + submitTimeDisplay + '</td>'; 
       tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
       tHtml += '<td style="padding:12px;">';
       if (c.status === 'Submitted') {
