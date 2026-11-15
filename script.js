@@ -534,9 +534,11 @@ async function loadCandidateOverview() {
       tHtml += '<td style="padding:12px; color:' + statusColor + '; font-weight:bold;">' + c.status + '</td>';
       tHtml += '<td style="padding:12px;">';
       if (c.status === 'Submitted') {
-        tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\', \'' + c.officialName + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
+      tHtml += '<a href="javascript:void(0)" onclick="showPDFModal(\'' + c.id + '\', \'' + c.candidate + '\', \'' + c.officialName + '\')" style="color:var(--isd-red); font-weight:bold;">View PDF</a>';
       } else {
-        tHtml += '<span style="color:#ccc; font-size:12px;">Awaiting Action</span>';
+        // 🔥 NEW: Show Send Reminder button with count
+        let countBadge = c.reminderCount > 0 ? `<span style="background:#FF5C35; color:white; border-radius:10px; padding:2px 8px; font-size:10px; margin-left:5px;">${c.reminderCount}</span>` : '';
+       tHtml += `<button onclick="triggerReminder('${c.id}', '${c.candidate}', '${c.officialName}', '${c.email}', ${c.reminderCount})" class="btn btn-primary" style="padding:5px 10px; width:auto; font-size:11px; background-color:var(--isd-yellow); color:#333; border:none;">🔔 Remind ${countBadge}</button>`;
       }
       tHtml += '</td></tr>';
     });
@@ -544,6 +546,39 @@ async function loadCandidateOverview() {
   
   tHtml += '</tbody></table></div></div>';
   document.getElementById('contentArea').innerHTML = tHtml;
+}
+
+function triggerReminder(assignmentId, candidateName, refereeName, email, currentCount) {
+  let warningMsg = "";
+  if (currentCount > 0) {
+    warningMsg = `<p style="color:#FF5C35; font-size:13px; font-weight:bold; margin-top:10px;">⚠️ You have already sent ${currentCount} reminder(s) for this candidate.</p>`;
+  }
+
+  document.getElementById('modalTitle').innerText = "Send Reminder?";
+  document.getElementById('modalMessage').innerHTML = `
+    <p>Are you sure you want to send a reminder email to <strong>${refereeName}</strong> (${email}) to complete the reference for <strong>${candidateName}</strong>?</p>
+    ${warningMsg}
+  `;
+  
+  document.querySelector('.modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="executeReminder('${assignmentId}')" style="width:auto; margin-right:10px; background-color:var(--isd-green);">Yes, Send Reminder</button>
+    <button class="btn btn-primary" onclick="closeModal()" style="width:auto; background-color:#777;">Cancel</button>
+  `;
+  document.getElementById('customModal').style.display = 'flex';
+}
+
+async function executeReminder(assignmentId) {
+  closeModal();
+  showModal("Sending...", "<p>Please wait while we send the reminder email...</p>");
+  
+  const res = await apiCall('sendReminderEmail', { assignmentId: assignmentId });
+  
+  if (res.success) {
+    showModal("Success", "<p>" + res.message + "</p>");
+    loadCandidateOverview(); // Refresh the table to update the count
+  } else {
+    showModal("Error", res.message);
+  }
 }
 
 // 🔥 NEW: Function to filter the table
