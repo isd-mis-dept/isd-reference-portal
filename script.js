@@ -771,9 +771,14 @@ async function populateEmailFields() {
 }
 
 async function sendDynamicEmail() {
-  let sel = document.getElementById('assignSelect'); let opt = sel.options[sel.selectedIndex];
+  let sel = document.getElementById('assignSelect'); 
+  let opt = sel.options[sel.selectedIndex];
   if(!opt.value) return showModal("Error", "Please select a referee first.");
-  let assignId = opt.value; let rName = opt.getAttribute('data-name'); let cName = opt.getAttribute('data-cand'); let rEmail = opt.getAttribute('data-email'); let rUser = opt.getAttribute('data-user');
+  let assignId = opt.value; let rName = opt.getAttribute('data-name'); 
+  let cName = opt.getAttribute('data-cand'); 
+  let rEmail = opt.getAttribute('data-email'); 
+  let rUser = opt.getAttribute('data-user');
+  let cPos = opt.getAttribute('data-pos'); // 🔥 NEW: Get Position
   let formLink = defaultSettings.loginUrl || window.location.href;
   const passRes = await apiCall('getRefereeCredentials', { username: rUser, assignmentId: assignId });
   let tempPass = passRes || "Please use your existing password";
@@ -792,7 +797,7 @@ async function sendDynamicEmail() {
           
           // 🔥 NEW INNER TEXT STARTS HERE
           '<p>Warm Greetings from International School Dhaka.</p>' +
-          '<p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring <strong>' +cPos+ '</strong> and <strong>' + cName + '</strong> has been shortlisted.</p>'            + '<p><strong>' + cName + '</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>' + cName + '</strong> by completing the           online reference form.</p>' +
+          '<p>My name is <strong>Tahnia Ahmed</strong>, HR Manager, at International School Dhaka. We are in the process of hiring <strong>' + cPos + '</strong> and <strong>' + cName + '</strong> has been shortlisted.</p>'            + '<p><strong>' + cName + '</strong> has provided your name as a referee. We would greatly appreciate it if you could share your overall experience working with <strong>' + cName + '</strong> by completing the           online reference form.</p>' +
           '<p>Please be assured that all information provided will be treated with the utmost confidentiality and used solely for recruitment purposes.</p>' +
           '<p>Thank you in advance for your time and support.</p>' +
           // 🔥 NEW INNER TEXT ENDS HERE
